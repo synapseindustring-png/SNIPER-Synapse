@@ -1,0 +1,43 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Synapse Sniper{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="{% url 'dashboard' %}">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span><strong>Synapse</strong><small>Sniper</small></span>
+      </a>
+      <nav aria-label="Navegação principal">
+        <a{% if request.resolver_match.url_name == 'dashboard' %} class="active"{% endif %} href="{% url 'dashboard' %}">Visão geral</a>
+        <a{% if 'query' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'query-list' %}">Consultas</a>
+        <a{% if 'company' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'company-list' %}">Indústrias</a>
+        <span>Parceiros</span>
+        <span>Sinais</span>
+        <span>Regras</span>
+        <span>Jobs</span>
+      </nav>
+      <form action="{% url 'logout' %}" method="post" class="logout-form">
+        {% csrf_token %}
+        <button type="submit">Sair</button>
+      </form>
+    </aside>
+    <main>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Radar comercial industrial</p>
+          <h1>{% block heading %}Visão geral{% endblock %}</h1>
+        </div>
+        <div class="user-chip">{{ request.user.get_username }}</div>
+      </header>
+      <section class="content">{% block content %}{% endblock %}</section>
+    </main>
+  </div>
+</body>
+</html>

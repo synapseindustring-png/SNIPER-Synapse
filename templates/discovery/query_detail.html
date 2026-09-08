@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}{{ query.name }} · Synapse Sniper{% endblock %}
+{% block heading %}{{ query.name }}{% endblock %}
+
+{% block content %}
+{% for message in messages %}<div class="flash {{ message.tags }}">{{ message }}</div>{% endfor %}
+
+<div class="detail-grid">
+  <article class="panel compact">
+    <div class="panel-head"><h2>Filtros</h2><span>{{ query.get_entity_target_display }}</span></div>
+    <dl class="facts">
+      <div><dt>Situação</dt><dd>Ativa</dd></div>
+      <div><dt>UF</dt><dd>{% if query.normalized_filters.states %}{{ query.normalized_filters.states|join:", " }}{% else %}Todas{% endif %}</dd></div>
+      <div><dt>Município</dt><dd>{% if query.normalized_filters.municipality_codes %}{{ query.normalized_filters.municipality_codes|join:", " }}{% else %}Todos{% endif %}</dd></div>
+      <div><dt>CNAE</dt><dd>{% if query.normalized_filters.cnae_prefixes %}{{ query.normalized_filters.cnae_prefixes|join:", " }}{% else %}Todos{% endif %}</dd></div>
+    </dl>
+  </article>
+
+  <article class="panel compact">
+    <div class="panel-head"><h2>Estimativa da prévia</h2><span>{% if plan.allowed %}Permitida{% else %}Bloqueada{% endif %}</span></div>
+    <p>{{ plan.reason }}</p>
+    {% if plan.source_file and plan.capacity %}
+    <dl class="facts">
+      <div><dt>Competência</dt><dd>{{ plan.dataset.reference }}</dd></div>
+      <div><dt>Download</dt><dd>{{ plan.source_file.size_bytes|filesizeformat }}</dd></div>
+      <div><dt>Pico temporário</dt><dd>{{ plan.capacity.expected_bytes|filesizeformat }}</dd></div>
+      <div><dt>Espaço livre atual</dt><dd>{{ plan.capacity.free_bytes|filesizeformat }}</dd></div>
+      <div><dt>Reserva após download</dt><dd>{{ plan.capacity.remaining_bytes|filesizeformat }}</dd></div>
+    </dl>
+    {% endif %}
+    <form method="post" action="{% url 'query-run-preview' query.pk %}" class="inline-form">
+      {% csrf_token %}
+      {{ preview_form.max_results.label_tag }} {{ preview_form.max_results }}
+      <button class="button" type="submit"{% if not plan.allowed %} disabled{% endif %}>Executar prévia</button>
+    </form>
+    <small>A prévia usa somente a menor parte disponível e não representa cobertura nacional completa.</small>
+  </article>
+</div>
+
+<article class="panel table-panel">
+  <div class="panel-head"><h2>Execuções</h2><span>{{ runs|length }} recentes</span></div>
+  {% if runs %}
+  <table>
+    <thead><tr><th>Início</th><th>Status</th><th>Lidos</th><th>Encontrados</th></tr></thead>
+    <tbody>{% for run in runs %}<tr>
+      <td><a class="table-link" href="{% url 'query-run-detail' run.pk %}">{{ run.created_at|date:"d/m/Y H:i" }}</a></td>
+      <td><span class="status status-{{ run.status|lower }}">{{ run.get_status_display }}</span></td>
+      <td>{{ run.records_processed }}</td><td>{{ run.records_matched }}</td>
+    </tr>{% endfor %}</tbody>
+  </table>
+  {% else %}<div class="empty-state">Nenhuma execução solicitada.</div>{% endif %}
+</article>
+{% endblock %}

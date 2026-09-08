@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Consultas · Synapse Sniper{% endblock %}
+{% block heading %}Consultas{% endblock %}
+
+{% block content %}
+<div class="page-actions">
+  <div><p>Crie pesquisas seletivas e valide o custo antes de consultar a Receita.</p></div>
+  <div class="action-group">
+    {% if request.user.is_staff %}<form method="post" action="{% url 'manifest-sync' %}">{% csrf_token %}<button class="button secondary" type="submit">Atualizar manifesto</button></form>{% endif %}
+    <a class="button" href="{% url 'query-create' %}">Nova consulta</a>
+  </div>
+</div>
+{% for message in messages %}<div class="flash {{ message.tags }}">{{ message }}</div>{% endfor %}
+{% if manifest_job %}<div class="manifest-status">Última atualização do manifesto: <strong>{{ manifest_job.get_status_display }}</strong> · {{ manifest_job.created_at|date:"d/m/Y H:i" }}</div>{% endif %}
+
+<div class="panel table-panel">
+  {% if queries %}
+  <table>
+    <thead><tr><th>Nome</th><th>Tipo</th><th>Filtros</th><th>Criada</th></tr></thead>
+    <tbody>
+      {% for query in queries %}
+      <tr>
+        <td><a class="table-link" href="{% url 'query-detail' query.pk %}">{{ query.name }}</a></td>
+        <td>{{ query.get_entity_target_display }}</td>
+        <td><code>{{ query.normalized_filters }}</code></td>
+        <td>{{ query.created_at|date:"d/m/Y H:i" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">Nenhuma consulta criada.</div>
+  {% endif %}
+</div>
+{% endblock %}

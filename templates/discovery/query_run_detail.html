@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Execução · {{ run.query.name }}{% endblock %}
+{% block heading %}Execução da consulta{% endblock %}
+
+{% block content %}
+<div class="notice light">
+  <div><p class="eyebrow">{{ run.query.name }}</p><h2>{{ run.get_status_display }}</h2><p>Competência {{ run.dataset_reference|default:"aguardando" }}</p></div>
+  <span class="status-pill">{{ run.records_matched }} resultados</span>
+</div>
+<div class="metric-grid three">
+  <article><span>Registros lidos</span><strong>{{ run.records_processed }}</strong></article>
+  <article><span>Correspondências</span><strong>{{ run.records_matched }}</strong></article>
+  <article><span>Falhas</span><strong>{{ run.records_failed }}</strong></article>
+</div>
+<article class="panel table-panel">
+  <div class="panel-head"><h2>Empresas encontradas</h2><span>Máximo exibido: 500</span></div>
+  {% if results %}<table><thead><tr><th>Empresa</th><th>CNPJ</th><th>UF</th><th>CNAE principal</th></tr></thead>
+  <tbody>{% for result in results %}<tr><td><a class="table-link" href="{% url 'company-detail' result.company.pk %}">{{ result.company }}</a></td><td>{{ result.company.cnpj }}</td><td>{{ result.company.state }}</td><td>{{ result.company.cnaes.first.code }}</td></tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty-state">Aguardando resultados.</div>{% endif %}
+</article>
+{% endblock %}

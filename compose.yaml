@@ -1,0 +1,67 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sniper
+      POSTGRES_USER: sniper
+      POSTGRES_PASSWORD: sniper
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sniper -d sniper"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  web:
+    build: .
+    command: sh -c "python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --access-logfile - --no-control-socket"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://sniper:sniper@db:5432/sniper
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+    ports:
+      - "${WEB_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  migrate:
+    build: .
+    command: python manage.py migrate --noinput
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://sniper:sniper@db:5432/sniper
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  worker:
+    build: .
+    command: python manage.py run_worker
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://sniper:sniper@db:5432/sniper
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "check", "--database", "default"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:

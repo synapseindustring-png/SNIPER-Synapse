@@ -1,0 +1,32 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar · Synapse Sniper</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body class="auth-page">
+  <main class="auth-card">
+    <div class="brand auth-brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span><strong>Synapse</strong><small>Sniper</small></span>
+    </div>
+    <p class="eyebrow">Inteligência comercial industrial</p>
+    <h1>Acesse o radar</h1>
+    <p class="auth-copy">Entre com sua conta administrativa para consultar e priorizar oportunidades.</p>
+    {% if form.errors %}<div class="form-error">Usuário ou senha inválidos.</div>{% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <label for="id_username">Usuário</label>
+      <input id="id_username" name="username" type="text" autocomplete="username" required autofocus>
+      <label for="id_password">Senha</label>
+      <input id="id_password" name="password" type="password" autocomplete="current-password" required>
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+      <button class="primary-button" type="submit">Entrar</button>
+    </form>
+  </main>
+</body>
+</html>
+

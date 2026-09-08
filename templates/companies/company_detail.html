@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}{{ company }} · Synapse Sniper{% endblock %}
+{% block heading %}Detalhe da indústria{% endblock %}
+
+{% block content %}
+{% for message in messages %}<div class="flash {{ message.tags }}">{{ message }}</div>{% endfor %}
+<div class="page-actions">
+  <div><p class="eyebrow">{{ company.cnpj|default:"CNPJ não informado" }}</p><h2 class="page-title">{{ company }}</h2></div>
+  <div class="action-group"><form method="post" action="{% url 'company-score' company.pk %}">{% csrf_token %}<button class="button" type="submit"{% if pending_score_job %} disabled{% endif %}>{% if pending_score_job %}Cálculo na fila{% else %}Calcular score{% endif %}</button></form><a class="button secondary" href="{% url 'company-list' %}">Voltar à lista</a></div>
+</div>
+
+{% if snapshot %}
+<article class="panel score-panel">
+  <div class="panel-head"><h2>Score explicável</h2><span>Regras v{{ snapshot.rule_set.version }} · {{ snapshot.as_of|date:"d/m/Y H:i" }}</span></div>
+  <div class="score-summary">
+    <div><span>Prioridade</span><strong>{{ snapshot.priority|floatformat:0 }}</strong></div>
+    <div><span>Classificação calculada</span><strong>{{ snapshot.calculated_classification }}</strong></div>
+    <div><span>Melhor produto</span><strong>{{ snapshot.best_product|default:"—" }}</strong></div>
+    {% if score_override %}<div><span>Override efetivo</span><strong>{{ score_override.classification|default:score_override.priority }}</strong><small>{{ score_override.reason }}</small></div>{% endif %}
+  </div>
+  <div class="dimension-grid">{% for dimension, value in snapshot.dimensions.items %}<div><span>{{ dimension }}</span><strong>{{ value }}</strong></div>{% endfor %}</div>
+  <div class="panel-head contribution-head"><h3>Contribuições</h3><span>{{ snapshot.contributions.all|length }} regra{{ snapshot.contributions.all|length|pluralize }}</span></div>
+  {% if snapshot.contributions.all %}<table><thead><tr><th>Dimensão</th><th>Regra</th><th>Base</th><th>Decay</th><th>Efetivo</th><th>Evidência</th></tr></thead><tbody>{% for contribution in snapshot.contributions.all %}<tr><td>{{ contribution.dimension }}</td><td>{{ contribution.rule.name }}</td><td>{{ contribution.base_points }}</td><td>{{ contribution.decay_multiplier }}</td><td><strong>{{ contribution.effective_points }}</strong></td><td>{% if contribution.evidence.title %}{{ contribution.evidence.title }}{% else %}<code>{{ contribution.evidence.condition }}</code>{% endif %}</td></tr>{% endfor %}</tbody></table>{% else %}<div class="empty-state small">Nenhuma regra contribuiu para esta versão.</div>{% endif %}
+</article>
+{% else %}
+<div class="notice light"><div><p class="eyebrow">Scoring</p><h2>Ainda não calculado</h2><p>O cálculo usa somente os dados e sinais persistidos e não inicia downloads externos.</p></div></div>
+{% endif %}
+
+<div class="detail-grid">
+  <article class="panel compact">
+    <div class="panel-head"><h2>Cadastro</h2><span>{{ company.get_registration_status_display }}</span></div>
+    <dl class="facts">
+      <div><dt>Razão social</dt><dd>{{ company.legal_name|default:"—" }}</dd></div>
+      <div><dt>Nome fantasia</dt><dd>{{ company.trade_name|default:"—" }}</dd></div>
+      <div><dt>Localidade</dt><dd>{{ company.municipality|default:"—" }}{% if company.state %}/{{ company.state }}{% endif %}</dd></div>
+      <div><dt>CEP</dt><dd>{{ company.postal_code|default:"—" }}</dd></div>
+      <div><dt>Data de abertura</dt><dd>{{ company.opened_on|date:"d/m/Y"|default:"—" }}</dd></div>
+      <div><dt>Etapa comercial</dt><dd>{{ company.get_commercial_status_display }}</dd></div>
+    </dl>
+  </article>
+  <article class="panel compact">
+    <div class="panel-head"><h2>CNAEs</h2><span>{{ company.cnaes.all|length }}</span></div>
+    {% if company.cnaes.all %}<ul class="record-list">{% for cnae in company.cnaes.all %}<li><strong>{{ cnae.code }}</strong><span>{% if cnae.is_primary %}Principal{% else %}Secundário{% endif %}{% if cnae.description %} · {{ cnae.description }}{% endif %}</span></li>{% endfor %}</ul>
+    {% else %}<div class="empty-state small">Nenhum CNAE registrado.</div>{% endif %}
+  </article>
+</div>
+
+<article class="panel table-panel">
+  <div class="panel-head"><h2>Proveniência</h2><span>Até 100 coletas recentes</span></div>
+  {% if company.recent_source_records %}
+  <table><thead><tr><th>Fonte</th><th>Referência</th><th>Consulta</th><th>Observado</th></tr></thead>
+  <tbody>{% for record in company.recent_source_records %}<tr><td>{{ record.source.name }}</td><td>{{ record.dataset_reference|default:"—" }}</td><td>{% if record.query_run %}<a class="table-link" href="{% url 'query-run-detail' record.query_run.pk %}">{{ record.query_run.query.name }}</a>{% else %}—{% endif %}</td><td>{{ record.observed_at|date:"d/m/Y H:i" }}</td></tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty-state small">Nenhuma coleta vinculada.</div>{% endif %}
+</article>
+
+<article class="panel table-panel">
+  <div class="panel-head"><h2>Campos observados</h2><span>Valores atuais com rastreabilidade</span></div>
+  {% if company.current_observations %}
+  <table><thead><tr><th>Campo</th><th>Valor normalizado</th><th>Fonte</th><th>Observado</th></tr></thead>
+  <tbody>{% for observation in company.current_observations %}<tr><td>{{ observation.field_name }}</td><td>{{ observation.normalized_value|default:observation.value }}</td><td>{{ observation.source_record.source.name }}</td><td>{{ observation.observed_at|date:"d/m/Y H:i" }}</td></tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty-state small">Nenhuma observação atual.</div>{% endif %}
+</article>
+{% endblock %}

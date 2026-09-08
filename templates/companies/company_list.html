@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Indústrias · Synapse Sniper{% endblock %}
+{% block heading %}Indústrias{% endblock %}
+
+{% block content %}
+<div class="page-actions">
+  <p>Empresas persistidas pelas consultas seletivas. Esta tela não baixa arquivos da fonte.</p>
+  <span class="status-pill">50 por página</span>
+</div>
+
+<form method="get" class="panel filter-form">
+  <div class="field"><label for="{{ form.q.id_for_label }}">{{ form.q.label }}</label>{{ form.q }}</div>
+  <div class="field compact-field"><label for="{{ form.state.id_for_label }}">{{ form.state.label }}</label>{{ form.state }}</div>
+  <div class="field"><label for="{{ form.registration_status.id_for_label }}">{{ form.registration_status.label }}</label>{{ form.registration_status }}</div>
+  <div class="field"><label for="{{ form.commercial_status.id_for_label }}">{{ form.commercial_status.label }}</label>{{ form.commercial_status }}</div>
+  <button class="button" type="submit">Filtrar</button>
+  <a class="button secondary" href="{% url 'company-list' %}">Limpar</a>
+</form>
+
+<article class="panel table-panel">
+  <div class="panel-head"><h2>Empresas encontradas</h2><span>{{ page.paginator.count }} registro{{ page.paginator.count|pluralize }}</span></div>
+  {% if page.object_list %}
+  <table>
+    <thead><tr><th>Empresa</th><th>CNPJ</th><th>Localidade</th><th>CNAE principal</th><th>Score</th><th>Situação</th><th>Etapa</th></tr></thead>
+    <tbody>
+      {% for company in page %}
+      <tr>
+        <td><a class="table-link" href="{% url 'company-detail' company.pk %}">{{ company }}</a></td>
+        <td>{{ company.cnpj|default:"—" }}</td>
+        <td>{{ company.municipality|default:"—" }}{% if company.state %}/{{ company.state }}{% endif %}</td>
+        <td>{% if company.primary_cnaes %}{{ company.primary_cnaes.0.code }}{% else %}—{% endif %}</td>
+        <td>{% if company.latest_priority is not None %}<strong>{{ company.latest_priority|floatformat:0 }}</strong> · {{ company.latest_classification }}{% else %}—{% endif %}</td>
+        <td>{{ company.get_registration_status_display }}</td>
+        <td>{{ company.get_commercial_status_display }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty-state">Nenhuma indústria corresponde aos filtros.</div>{% endif %}
+
+  {% if page.paginator.num_pages > 1 %}
+  <nav class="pagination" aria-label="Paginação">
+    {% if page.has_previous %}<a class="button secondary" href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.previous_page_number }}">Anterior</a>{% endif %}
+    <span>Página {{ page.number }} de {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}<a class="button secondary" href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.next_page_number }}">Próxima</a>{% endif %}
+  </nav>
+  {% endif %}
+</article>
+{% endblock %}
