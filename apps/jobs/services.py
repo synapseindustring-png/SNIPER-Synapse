@@ -121,4 +121,18 @@ def execute_job(job: Job) -> None:
         calculate_score(company, as_of=as_of, rule_set=rule_set)
         Job.objects.filter(pk=job.pk).update(records_processed=1, records_success=1)
         return
+    if job.type == Job.Type.DETECT_SIGNALS:
+        from apps.companies.models import Company
+        from apps.scoring.services import enqueue_company_score
+        from apps.signals.detector import detect_company_signals
+
+        company = Company.objects.get(pk=job.payload["company_id"])
+        stats = detect_company_signals(company)
+        Job.objects.filter(pk=job.pk).update(
+            records_processed=stats.records_scanned,
+            records_success=stats.signals_matched,
+            records_failed=0,
+        )
+        enqueue_company_score(company)
+        return
     raise NotImplementedError(f"Handler not implemented for job type {job.type}")

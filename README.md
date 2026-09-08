@@ -30,6 +30,11 @@ thresholds, decay, snapshots imutáveis, contribuições explicáveis e override
 empresa permite solicitar o cálculo ao worker e exibe o score sem acessar fontes externas.
 Os pesos seed estão identificados como hipóteses até a validação comercial.
 
+O detector de sinais percorre somente registros-fonte já armazenados, aplica regras de
+palavras-chave com limites de palavra, preserva o trecho de evidência e agenda o recálculo
+do score. Onze regras seed cobrem temas iniciais como PCM, manutenção, OEE, MES, produção,
+telemetria, automação, expansão, contratação, ERP e uso de planilhas.
+
 Decisões centrais:
 
 - descoberta iniciada por consultas, sem upload manual de listas;

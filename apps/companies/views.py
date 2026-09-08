@@ -3,12 +3,12 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import OuterRef, Prefetch, Q, Subquery
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.jobs.models import Job
-from apps.scoring.models import RuleSet, ScoreContribution
-from apps.scoring.models import ScoreSnapshot
+from apps.scoring.models import ScoreContribution, ScoreSnapshot
+from apps.scoring.services import enqueue_company_score
+from apps.signals.services import enqueue_signal_detection
 from apps.sources.models import FieldObservation, SourceRecord
 
 from .forms import CompanyFilterForm
@@ -96,6 +96,12 @@ def company_detail(request, pk):
         status__in=(Job.Status.PENDING, Job.Status.RUNNING, Job.Status.RETRY_SCHEDULED),
         payload__company_id=str(company.pk),
     ).exists()
+    pending_signal_job = Job.objects.filter(
+        type=Job.Type.DETECT_SIGNALS,
+        status__in=(Job.Status.PENDING, Job.Status.RUNNING, Job.Status.RETRY_SCHEDULED),
+        payload__company_id=str(company.pk),
+    ).exists()
+    signals = company.signals.filter(active=True).select_related("source_record__source")[:100]
     return render(
         request,
         "companies/company_detail.html",
@@ -104,6 +110,8 @@ def company_detail(request, pk):
             "snapshot": snapshot,
             "score_override": override,
             "pending_score_job": pending_score_job,
+            "pending_signal_job": pending_signal_job,
+            "signals": signals,
         },
     )
 
@@ -112,36 +120,24 @@ def company_detail(request, pk):
 @require_POST
 def company_score(request, pk):
     company = get_object_or_404(Company, pk=pk, deleted_at__isnull=True)
-    target = (
-        RuleSet.Target.INDUSTRY
-        if company.company_type == Company.Type.INDUSTRY
-        else RuleSet.Target.PARTNER
-    )
-    rule_set = get_object_or_404(
-        RuleSet,
-        target=target,
-        active=True,
-        status=RuleSet.Status.PUBLISHED,
-    )
-    latest_signal = company.signals.order_by("-updated_at").values_list("updated_at", flat=True).first()
-    now = timezone.now()
-    data_version = max(timestamp for timestamp in (company.updated_at, latest_signal) if timestamp)
-    _, created = Job.objects.get_or_create(
-        idempotency_key=(
-            f"score:{company.pk}:{rule_set.pk}:{data_version.isoformat()}:{now.date().isoformat()}"
-        ),
-        defaults={
-            "type": Job.Type.CALCULATE_SCORE,
-            "payload": {
-                "company_id": str(company.pk),
-                "rule_set_id": str(rule_set.pk),
-                "as_of": now.isoformat(),
-            },
-            "priority": 10,
-        },
-    )
+    _, created = enqueue_company_score(company)
     messages.info(
         request,
         "Cálculo enviado ao worker." if created else "Esta versão dos dados já foi calculada ou está na fila.",
+    )
+    return redirect("company-detail", pk=company.pk)
+
+
+@login_required
+@require_POST
+def company_detect_signals(request, pk):
+    company = get_object_or_404(Company, pk=pk, deleted_at__isnull=True)
+    if not company.source_records.exists():
+        messages.error(request, "A empresa ainda não possui evidências locais para analisar.")
+        return redirect("company-detail", pk=company.pk)
+    _, created = enqueue_signal_detection(company)
+    messages.info(
+        request,
+        "Detecção enviada ao worker." if created else "As evidências atuais já foram analisadas ou estão na fila.",
     )
     return redirect("company-detail", pk=company.pk)

@@ -169,7 +169,14 @@ ser introduzido quando o detector automático exigir políticas próprias por ti
 
 ### `signal_detection`
 
-Registra a execução de uma regra que originou ou confirmou um sinal: regra/versionamento, texto ou campo correspondido, offsets quando aplicável e data.
+Registra a execução de uma regra que originou ou confirmou um sinal: regra/versionamento,
+registro-fonte, campo correspondido, termos, trecho curto de evidência e data.
+
+### `signal_rule`
+
+Regra explícita e versionada do detector: tipo de sinal, produto, termos, modo `ANY`/`ALL`,
+campos permitidos do payload, peso-base, expiração, decay e estado ativo. Apenas uma versão
+ativa por chave é permitida.
 
 ## Regras e scoring
 

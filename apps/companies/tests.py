@@ -91,3 +91,27 @@ class CompanyViewsTests(TestCase):
         self.assertRedirects(second, reverse("company-detail", args=[self.company.pk]))
         job = Job.objects.get(type=Job.Type.CALCULATE_SCORE)
         self.assertEqual(job.payload["company_id"], str(self.company.pk))
+
+    def test_signal_action_enqueues_one_job_for_current_evidence(self):
+        source, _ = Source.objects.get_or_create(
+            key="signal-source", defaults={"name": "Fonte de sinais"}
+        )
+        SourceRecord.objects.create(
+            source=source,
+            external_id=self.company.cnpj,
+            company=self.company,
+            payload={"description": "Projeto de OEE"},
+            payload_hash="b" * 64,
+            observed_at=timezone.now(),
+        )
+
+        first = self.client.post(
+            reverse("company-detect-signals", args=[self.company.pk])
+        )
+        second = self.client.post(
+            reverse("company-detect-signals", args=[self.company.pk])
+        )
+
+        self.assertRedirects(first, reverse("company-detail", args=[self.company.pk]))
+        self.assertRedirects(second, reverse("company-detail", args=[self.company.pk]))
+        self.assertEqual(Job.objects.filter(type=Job.Type.DETECT_SIGNALS).count(), 1)

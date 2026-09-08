@@ -7,7 +7,7 @@
 {% for message in messages %}<div class="flash {{ message.tags }}">{{ message }}</div>{% endfor %}
 <div class="page-actions">
   <div><p class="eyebrow">{{ company.cnpj|default:"CNPJ não informado" }}</p><h2 class="page-title">{{ company }}</h2></div>
-  <div class="action-group"><form method="post" action="{% url 'company-score' company.pk %}">{% csrf_token %}<button class="button" type="submit"{% if pending_score_job %} disabled{% endif %}>{% if pending_score_job %}Cálculo na fila{% else %}Calcular score{% endif %}</button></form><a class="button secondary" href="{% url 'company-list' %}">Voltar à lista</a></div>
+  <div class="action-group"><form method="post" action="{% url 'company-detect-signals' company.pk %}">{% csrf_token %}<button class="button secondary" type="submit"{% if pending_signal_job or not company.recent_source_records %} disabled{% endif %}>{% if pending_signal_job %}Detecção na fila{% else %}Detectar sinais locais{% endif %}</button></form><form method="post" action="{% url 'company-score' company.pk %}">{% csrf_token %}<button class="button" type="submit"{% if pending_score_job %} disabled{% endif %}>{% if pending_score_job %}Cálculo na fila{% else %}Calcular score{% endif %}</button></form><a class="button secondary" href="{% url 'company-list' %}">Voltar à lista</a></div>
 </div>
 
 {% if snapshot %}
@@ -26,6 +26,15 @@
 {% else %}
 <div class="notice light"><div><p class="eyebrow">Scoring</p><h2>Ainda não calculado</h2><p>O cálculo usa somente os dados e sinais persistidos e não inicia downloads externos.</p></div></div>
 {% endif %}
+
+<article class="panel table-panel">
+  <div class="panel-head"><h2>Sinais ativos</h2><span>{{ signals|length }} de até 100 exibidos</span></div>
+  {% if signals %}
+  <table><thead><tr><th>Tipo</th><th>Produto</th><th>Evidência</th><th>Fonte</th><th>Observado</th></tr></thead><tbody>
+    {% for signal in signals %}<tr><td><span class="status">{{ signal.signal_type }}</span></td><td>{{ signal.get_product_display }}</td><td><strong>{{ signal.title }}</strong><br><small>{{ signal.evidence_excerpt }}</small></td><td>{% if signal.source_record %}{{ signal.source_record.source.name }}{% else %}Manual{% endif %}</td><td>{{ signal.observed_at|date:"d/m/Y H:i" }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<div class="empty-state small">Nenhum sinal ativo. A detecção local analisa somente evidências já coletadas.</div>{% endif %}
+</article>
 
 <div class="detail-grid">
   <article class="panel compact">

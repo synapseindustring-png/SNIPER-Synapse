@@ -117,8 +117,9 @@ Status: iniciada. Signal, RuleSet, ScoringRule, ScoreSnapshot, ScoreContribution
 ScoreOverride estão persistidos e disponíveis no admin. O motor determinístico calcula
 indústrias e parceiros, aplica condições compostas, decay, caps, regra crítica, fórmula e
 thresholds. O cálculo assíncrono e o Explain Score já aparecem no detalhe da empresa. O
-detector automático de sinais, publicação/simulação avançada e fluxo completo de parceiros
-continuam pendentes.
+detector determinístico analisa payloads já persistidos, conserva evidências, deduplica e
+desativa sinais obsoletos. Coleta de conteúdo para alimentar o detector,
+publicação/simulação avançada e fluxo completo de parceiros continuam pendentes.
 
 ### Entregáveis
 

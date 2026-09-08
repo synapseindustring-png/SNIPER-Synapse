@@ -51,3 +51,60 @@ class Signal(models.Model):
 
     def __str__(self):
         return f"{self.signal_type} · {self.company}"
+
+
+class SignalRule(models.Model):
+    class MatchMode(models.TextChoices):
+        ANY = "ANY", "Qualquer termo"
+        ALL = "ALL", "Todos os termos"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    key = models.SlugField(max_length=100)
+    version = models.PositiveIntegerField(default=1)
+    name = models.CharField(max_length=180)
+    description = models.TextField(blank=True)
+    signal_type = models.SlugField(max_length=80)
+    product = models.CharField(max_length=8, choices=Signal.Product.choices, default=Signal.Product.NONE)
+    keywords = models.JSONField(default=list)
+    match_mode = models.CharField(max_length=8, choices=MatchMode.choices, default=MatchMode.ANY)
+    source_fields = models.JSONField(default=list)
+    base_weight = models.DecimalField(max_digits=7, decimal_places=3, default=0)
+    applies_decay = models.BooleanField(default=True)
+    expires_after_days = models.PositiveSmallIntegerField(null=True, blank=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("key", "-version")
+        constraints = [
+            models.UniqueConstraint(fields=("key", "version"), name="unique_signal_rule_version"),
+            models.UniqueConstraint(
+                fields=("key",), condition=models.Q(active=True), name="one_active_signal_rule"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.name} · v{self.version}"
+
+
+class SignalDetection(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    signal = models.ForeignKey(Signal, on_delete=models.CASCADE, related_name="detections")
+    rule = models.ForeignKey(SignalRule, on_delete=models.PROTECT, related_name="detections")
+    source_record = models.ForeignKey(
+        "sources.SourceRecord", on_delete=models.PROTECT, related_name="signal_detections"
+    )
+    field_name = models.CharField(max_length=120)
+    matched_terms = models.JSONField(default=list)
+    evidence_excerpt = models.TextField()
+    detected_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-detected_at",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("signal", "rule", "source_record", "field_name"),
+                name="unique_signal_detection_evidence",
+            )
+        ]
