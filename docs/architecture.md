@@ -182,7 +182,8 @@ Dados sensíveis e secrets nunca entram em logs. Conteúdo coletado é tratado c
 O mesmo parser extrai, com limite próprio, objetos JSON-LD `JobPosting` das respostas já
 baixadas. Eles são normalizados em `JobPosting`, ligados ao `SourceRecord` da página e
 oferecidos ao detector pelos campos `job_title` e `job_description`; nenhum link de vaga é
-visitado automaticamente.
+visitado automaticamente. O detector gera uma evidência por vaga e regra, usando a data de
+publicação para decay e a validade/idade máxima para expiração.
 
 ## Observabilidade
 

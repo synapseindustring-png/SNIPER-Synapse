@@ -43,7 +43,8 @@ URL, respeita `robots.txt` e limita tempo, bytes e tipo de
 conteúdo. Somente texto visível limitado e seu hash são persistidos; o HTML é descartado.
 JSON-LD `JobPosting` presente nessas mesmas respostas é convertido em vagas normalizadas,
 deduplicadas e exibidas no detalhe da empresa. Essa etapa não faz novas requisições e as
-vagas estruturadas alimentam o detector de sinais e o scoring.
+vagas estruturadas alimentam o detector de sinais e o scoring. Cada vaga preserva sua
+própria URL e data de publicação para evidência e decay, e expira após o limite configurado.
 
 Decisões centrais:
 

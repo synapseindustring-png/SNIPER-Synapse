@@ -21,6 +21,7 @@ CRAWLER_MAX_BYTES = int(os.getenv("CRAWLER_MAX_BYTES", "5000000"))
 CRAWLER_MAX_TEXT_CHARS = int(os.getenv("CRAWLER_MAX_TEXT_CHARS", "200000"))
 CRAWLER_MAX_REDIRECTS = int(os.getenv("CRAWLER_MAX_REDIRECTS", "3"))
 CRAWLER_MAX_PAGES = int(os.getenv("CRAWLER_MAX_PAGES", "5"))
+JOB_POSTING_MAX_AGE_DAYS = int(os.getenv("JOB_POSTING_MAX_AGE_DAYS", "365"))
 
 
 def env_bool(name: str, default: bool = False) -> bool:

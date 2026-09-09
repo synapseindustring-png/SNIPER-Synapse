@@ -1,6 +1,7 @@
 import hashlib
 import json
 from dataclasses import dataclass
+from datetime import timedelta
 from urllib.parse import urljoin, urlsplit, urlunsplit
 from urllib.robotparser import RobotFileParser
 
@@ -196,6 +197,9 @@ def persist_job_postings(
     observed_at=None,
 ) -> int:
     observed_at = observed_at or timezone.now()
+    oldest_published_on = observed_at.date() - timedelta(
+        days=max(1, settings.JOB_POSTING_MAX_AGE_DAYS)
+    )
     seen_fingerprints = set()
     for payload in _job_posting_objects(structured_data)[:100]:
         title = _scalar(payload.get("title") or payload.get("name"))[:500]
@@ -214,6 +218,9 @@ def persist_job_postings(
         external_id = _job_identifier(payload.get("identifier") or payload.get("@id"))
         published_on = _job_date(payload.get("datePosted"))
         valid_through = _job_date(payload.get("validThrough"))
+        active = (valid_through is None or valid_through >= observed_at.date()) and (
+            published_on is None or published_on >= oldest_published_on
+        )
         identity = url or external_id or json.dumps(
             [title.casefold(), location.casefold(), published_on.isoformat() if published_on else ""],
             ensure_ascii=False,
@@ -232,7 +239,7 @@ def persist_job_postings(
             "published_on": published_on,
             "valid_through": valid_through,
             "last_seen_at": observed_at,
-            "active": True,
+            "active": active,
             "metadata": {"schema_type": "JobPosting"},
         }
         JobPosting.objects.update_or_create(

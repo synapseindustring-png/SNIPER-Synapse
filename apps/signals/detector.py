@@ -2,10 +2,12 @@ import hashlib
 import re
 import unicodedata
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
+from django.conf import settings
 from django.db import transaction
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
+from django.utils import timezone
 
 from apps.companies.models import Company
 from apps.crawler.models import JobPosting
@@ -29,14 +31,6 @@ def _normalize(value: str) -> str:
 
 
 def _payload_value(record, path: str):
-    if path in {"job_title", "job_description"}:
-        attribute = "title" if path == "job_title" else "description"
-        values = [
-            getattr(posting, attribute)
-            for posting in getattr(record, "active_job_postings", ())
-            if getattr(posting, attribute)
-        ]
-        return "\n".join(values) or None
     if path in {"content", "text"}:
         try:
             return record.website_page.extracted_text
@@ -50,6 +44,52 @@ def _payload_value(record, path: str):
     if isinstance(value, list):
         return " ".join(str(item) for item in value if not isinstance(item, (dict, list)))
     return value if isinstance(value, (str, int, float)) else None
+
+
+def _rule_matches(record, rule: SignalRule):
+    matches = []
+    generic_match_found = False
+    matched_posting_ids = set()
+    for field_name in rule.source_fields:
+        if field_name in {"job_title", "job_description"}:
+            attribute = "title" if field_name == "job_title" else "description"
+            for posting in getattr(record, "active_job_postings", ()):
+                if posting.pk in matched_posting_ids:
+                    continue
+                value = getattr(posting, attribute)
+                terms = _matched_terms(value, rule) if value else []
+                if terms:
+                    matches.append((field_name, value, terms, posting))
+                    matched_posting_ids.add(posting.pk)
+            continue
+        if generic_match_found:
+            continue
+        value = _payload_value(record, field_name)
+        if value is None:
+            continue
+        terms = _matched_terms(str(value), rule)
+        if terms:
+            matches.append((field_name, str(value), terms, None))
+            generic_match_found = True
+    return matches
+
+
+def _start_of_day(value):
+    return timezone.make_aware(datetime.combine(value, time.min), timezone.get_current_timezone())
+
+
+def _job_signal_dates(posting: JobPosting, rule: SignalRule):
+    observed_at = (
+        _start_of_day(posting.published_on) if posting.published_on else posting.first_seen_at
+    )
+    expirations = [
+        observed_at + timedelta(days=max(1, settings.JOB_POSTING_MAX_AGE_DAYS))
+    ]
+    if rule.expires_after_days:
+        expirations.append(observed_at + timedelta(days=rule.expires_after_days))
+    if posting.valid_through:
+        expirations.append(_start_of_day(posting.valid_through + timedelta(days=1)))
+    return observed_at, min(expirations)
 
 
 def _matched_terms(text: str, rule: SignalRule) -> list[str]:
@@ -77,6 +117,11 @@ def _excerpt(text: str, terms: list[str], limit: int = 360) -> str:
 
 @transaction.atomic
 def detect_company_signals(company: Company) -> DetectionStats:
+    today = timezone.localdate()
+    oldest_published_on = today - timedelta(days=max(1, settings.JOB_POSTING_MAX_AGE_DAYS))
+    company.job_postings.filter(active=True).filter(
+        Q(valid_through__lt=today) | Q(published_on__lt=oldest_published_on)
+    ).update(active=False)
     rules = list(SignalRule.objects.filter(active=True))
     seen_signal_ids = set()
     records_scanned = rules_evaluated = signals_matched = signals_created = 0
@@ -91,55 +136,62 @@ def detect_company_signals(company: Company) -> DetectionStats:
         records_scanned += 1
         for rule in rules:
             rules_evaluated += 1
-            match = None
-            for field_name in rule.source_fields:
-                value = _payload_value(record, field_name)
-                if value is None:
-                    continue
-                terms = _matched_terms(str(value), rule)
-                if terms:
-                    match = (field_name, str(value), terms)
-                    break
-            if match is None:
-                continue
-            field_name, value, terms = match
-            evidence_hash = hashlib.sha256(
-                f"{rule.key}:{rule.version}:{record.pk}".encode()
-            ).hexdigest()
-            expires_at = (
-                record.observed_at + timedelta(days=rule.expires_after_days)
-                if rule.expires_after_days
-                else None
-            )
-            excerpt = _excerpt(value, terms)
-            signal, created = Signal.objects.update_or_create(
-                company=company,
-                signal_type=rule.signal_type,
-                evidence_hash=evidence_hash,
-                defaults={
-                    "product": rule.product,
-                    "source_record": record,
-                    "source_url": record.source_url,
-                    "title": rule.name,
-                    "evidence_excerpt": excerpt,
-                    "base_weight": rule.base_weight,
-                    "applies_decay": rule.applies_decay,
-                    "observed_at": record.observed_at,
-                    "expires_at": expires_at,
-                    "active": True,
-                    "metadata": {"rule_key": rule.key, "rule_version": rule.version},
-                },
-            )
-            SignalDetection.objects.update_or_create(
-                signal=signal,
-                rule=rule,
-                source_record=record,
-                field_name=field_name,
-                defaults={"matched_terms": terms, "evidence_excerpt": excerpt},
-            )
-            seen_signal_ids.add(signal.pk)
-            signals_matched += 1
-            signals_created += int(created)
+            for field_name, value, terms, posting in _rule_matches(record, rule):
+                evidence_key = posting.fingerprint if posting else str(record.pk)
+                evidence_hash = hashlib.sha256(
+                    f"{rule.key}:{rule.version}:{evidence_key}".encode()
+                ).hexdigest()
+                if posting:
+                    observed_at, expires_at = _job_signal_dates(posting, rule)
+                    source_url = posting.url or record.source_url
+                    title = f"{rule.name}: {posting.title}"[:255]
+                    metadata = {
+                        "rule_key": rule.key,
+                        "rule_version": rule.version,
+                        "job_posting_id": str(posting.pk),
+                        "job_fingerprint": posting.fingerprint,
+                        "job_title": posting.title,
+                        "job_location": posting.location,
+                    }
+                else:
+                    observed_at = record.observed_at
+                    expires_at = (
+                        observed_at + timedelta(days=rule.expires_after_days)
+                        if rule.expires_after_days
+                        else None
+                    )
+                    source_url = record.source_url
+                    title = rule.name
+                    metadata = {"rule_key": rule.key, "rule_version": rule.version}
+                excerpt = _excerpt(value, terms)
+                signal, created = Signal.objects.update_or_create(
+                    company=company,
+                    signal_type=rule.signal_type,
+                    evidence_hash=evidence_hash,
+                    defaults={
+                        "product": rule.product,
+                        "source_record": record,
+                        "source_url": source_url,
+                        "title": title,
+                        "evidence_excerpt": excerpt,
+                        "base_weight": rule.base_weight,
+                        "applies_decay": rule.applies_decay,
+                        "observed_at": observed_at,
+                        "expires_at": expires_at,
+                        "active": True,
+                        "metadata": metadata,
+                    },
+                )
+                SignalDetection.objects.update_or_create(
+                    signal=signal,
+                    rule=rule,
+                    source_record=record,
+                    field_name=field_name,
+                    defaults={"matched_terms": terms, "evidence_excerpt": excerpt},
+                )
+                seen_signal_ids.add(signal.pk)
+                signals_matched += 1
+                signals_created += int(created)
 
     generated = Signal.objects.filter(company=company, detections__isnull=False).distinct()
     stale = generated.exclude(pk__in=seen_signal_ids)

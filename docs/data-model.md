@@ -161,7 +161,9 @@ estado ativo e metadados.
 
 O fingerprint por empresa prioriza URL canônica, depois ID externo e, como fallback,
 cargo+local+data. A recoleta atualiza a observação sem duplicar e desativa vagas que
-desapareceram da mesma página-fonte.
+desapareceram da mesma página-fonte, excederam a idade máxima ou passaram de `valid_through`.
+Cada sinal originado de vaga guarda seu ID/fingerprint nos metadados e usa `published_on`
+como data observada, permitindo decay e rastreabilidade por vaga.
 
 ## Sinais
 

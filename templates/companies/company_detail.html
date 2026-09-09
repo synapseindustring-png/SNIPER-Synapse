@@ -31,7 +31,7 @@
   <div class="panel-head"><h2>Sinais ativos</h2><span>{{ signals|length }} de até 100 exibidos</span></div>
   {% if signals %}
   <table><thead><tr><th>Tipo</th><th>Produto</th><th>Evidência</th><th>Fonte</th><th>Observado</th></tr></thead><tbody>
-    {% for signal in signals %}<tr><td><span class="status">{{ signal.signal_type }}</span></td><td>{{ signal.get_product_display }}</td><td><strong>{{ signal.title }}</strong><br><small>{{ signal.evidence_excerpt }}</small></td><td>{% if signal.source_record %}{{ signal.source_record.source.name }}{% else %}Manual{% endif %}</td><td>{{ signal.observed_at|date:"d/m/Y H:i" }}</td></tr>{% endfor %}
+    {% for signal in signals %}<tr><td><span class="status">{{ signal.signal_type }}</span></td><td>{{ signal.get_product_display }}</td><td><strong>{{ signal.title }}</strong><br><small>{{ signal.evidence_excerpt }}</small></td><td>{% if signal.source_url %}<a class="table-link" href="{{ signal.source_url }}" target="_blank" rel="noopener noreferrer">{% if signal.source_record %}{{ signal.source_record.source.name }}{% else %}Evidência{% endif %}</a>{% elif signal.source_record %}{{ signal.source_record.source.name }}{% else %}Manual{% endif %}</td><td>{{ signal.observed_at|date:"d/m/Y H:i" }}</td></tr>{% endfor %}
   </tbody></table>
   {% else %}<div class="empty-state small">Nenhum sinal ativo. A detecção local analisa somente evidências já coletadas.</div>{% endif %}
 </article>

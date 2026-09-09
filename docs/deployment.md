@@ -143,6 +143,9 @@ O crawler processa páginas sequencialmente e limita cada execução por
 uma coleta não cresce proporcionalmente ao tamanho total do website.
 Dados JSON-LD usam um teto adicional de 200 mil caracteres por página. Apenas até 100
 objetos estruturados e 100 vagas são considerados; o HTML bruto continua sendo descartado.
+`JOB_POSTING_MAX_AGE_DAYS` define a idade máxima de uma vaga ativa (padrão 365). Uma
+`validThrough` anterior também a desativa; a próxima detecção desativa seus sinais e agenda
+o scoring pelo fluxo normal do job de coleta/detecção.
 
 ## Observação sobre Git
 
