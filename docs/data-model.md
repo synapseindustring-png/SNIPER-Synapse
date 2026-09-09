@@ -155,9 +155,13 @@ inalteradas são deduplicadas por empresa, URL e hash.
 
 ### `job_posting`
 
-Campos: empresa, fonte, ID externo, cargo, descrição normalizada, local, URL, data de publicação, primeira/última observação e estado ativo.
+Campos implementados: empresa, source record, fingerprint, ID externo, cargo, descrição
+normalizada, local, regime, URL, datas de publicação/validade, primeira/última observação,
+estado ativo e metadados.
 
-Deduplicação por fonte+ID; fallback por empresa+cargo+local+URL normalizada.
+O fingerprint por empresa prioriza URL canônica, depois ID externo e, como fallback,
+cargo+local+data. A recoleta atualiza a observação sem duplicar e desativa vagas que
+desapareceram da mesma página-fonte.
 
 ## Sinais
 

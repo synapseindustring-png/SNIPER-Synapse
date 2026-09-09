@@ -109,6 +109,7 @@ def company_detail(request, pk):
         payload__company_id=str(company.pk),
     ).exists()
     website_pages = company.website_pages.filter(current=True)[:20]
+    job_postings = company.job_postings.filter(active=True).select_related("source_record")[:100]
     return render(
         request,
         "companies/company_detail.html",
@@ -121,6 +122,7 @@ def company_detail(request, pk):
             "signals": signals,
             "pending_crawl_job": pending_crawl_job,
             "website_pages": website_pages,
+            "job_postings": job_postings,
         },
     )
 

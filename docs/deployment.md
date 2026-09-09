@@ -141,6 +141,8 @@ CPU/RAM do Maps serão medidos com uma única página/browser e baixa concorrên
 O crawler processa páginas sequencialmente e limita cada execução por
 `CRAWLER_MAX_PAGES` (padrão 5). Como cada resposta e o texto extraído também possuem teto,
 uma coleta não cresce proporcionalmente ao tamanho total do website.
+Dados JSON-LD usam um teto adicional de 200 mil caracteres por página. Apenas até 100
+objetos estruturados e 100 vagas são considerados; o HTML bruto continua sendo descartado.
 
 ## Observação sobre Git
 

@@ -1,4 +1,5 @@
 import hashlib
+import json
 from dataclasses import dataclass
 from urllib.parse import urljoin, urlsplit, urlunsplit
 from urllib.robotparser import RobotFileParser
@@ -6,14 +7,15 @@ from urllib.robotparser import RobotFileParser
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
+from django.utils.dateparse import parse_date, parse_datetime
 
 from apps.companies.models import Company
 from apps.jobs.models import Job
 from apps.sources.models import Source, SourceRecord
 
 from .client import WebsiteFetchError, fetch_url
-from .extraction import extract_html_document
-from .models import WebsitePage
+from .extraction import ExtractedDocument, extract_html_document, extract_html_text
+from .models import JobPosting, WebsitePage
 from .security import UnsafeWebsiteUrl, canonicalize_url, same_site
 
 
@@ -29,6 +31,7 @@ class CrawlBatchOutcome:
     pages: tuple[CrawlOutcome, ...]
     pages_attempted: int
     pages_failed: int
+    jobs_found: int
 
 
 def company_website_url(company: Company) -> str:
@@ -117,6 +120,136 @@ def _page_type(url: str) -> str:
     return WebsitePage.PageType.OTHER
 
 
+def _scalar(value) -> str:
+    if isinstance(value, (str, int, float)):
+        return " ".join(str(value).split())
+    return ""
+
+
+def _job_posting_objects(structured_data) -> list[dict]:
+    postings = []
+    for item in structured_data:
+        item_types = item.get("@type", [])
+        if isinstance(item_types, str):
+            item_types = [item_types]
+        if any(_scalar(item_type).casefold() == "jobposting" for item_type in item_types):
+            postings.append(item)
+    return postings
+
+
+def _job_location(value) -> str:
+    locations = value if isinstance(value, list) else [value]
+    rendered = []
+    for location in locations:
+        if not isinstance(location, dict):
+            continue
+        address = location.get("address", location)
+        if not isinstance(address, dict):
+            continue
+        country = address.get("addressCountry")
+        if isinstance(country, dict):
+            country = country.get("name") or country.get("@id")
+        parts = [
+            _scalar(address.get("addressLocality")),
+            _scalar(address.get("addressRegion")),
+            _scalar(country),
+        ]
+        rendered_location = "/".join(part for part in parts if part)
+        if rendered_location:
+            rendered.append(rendered_location)
+    return " · ".join(dict.fromkeys(rendered))[:500]
+
+
+def _job_date(value):
+    value = _scalar(value)
+    if not value:
+        return None
+    parsed = parse_date(value)
+    if parsed:
+        return parsed
+    parsed_datetime = parse_datetime(value)
+    return parsed_datetime.date() if parsed_datetime else None
+
+
+def _job_url(value) -> str:
+    value = _scalar(value)
+    if not value:
+        return ""
+    try:
+        return canonicalize_url(value)[:1000]
+    except (UnsafeWebsiteUrl, ValueError):
+        return ""
+
+
+def _job_identifier(value) -> str:
+    if isinstance(value, dict):
+        value = value.get("value") or value.get("name") or value.get("@id")
+    return _scalar(value)[:500]
+
+
+@transaction.atomic
+def persist_job_postings(
+    company: Company,
+    *,
+    source_record: SourceRecord,
+    structured_data,
+    observed_at=None,
+) -> int:
+    observed_at = observed_at or timezone.now()
+    seen_fingerprints = set()
+    for payload in _job_posting_objects(structured_data)[:100]:
+        title = _scalar(payload.get("title") or payload.get("name"))[:500]
+        if not title:
+            continue
+        raw_description = _scalar(payload.get("description"))
+        description = extract_html_text(raw_description.encode("utf-8"))[1][:20_000]
+        location = _job_location(payload.get("jobLocation"))
+        employment_value = payload.get("employmentType")
+        if isinstance(employment_value, list):
+            employment_type = ", ".join(filter(None, map(_scalar, employment_value)))
+        else:
+            employment_type = _scalar(employment_value)
+        employment_type = employment_type[:120]
+        url = _job_url(payload.get("url"))
+        external_id = _job_identifier(payload.get("identifier") or payload.get("@id"))
+        published_on = _job_date(payload.get("datePosted"))
+        valid_through = _job_date(payload.get("validThrough"))
+        identity = url or external_id or json.dumps(
+            [title.casefold(), location.casefold(), published_on.isoformat() if published_on else ""],
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        fingerprint = hashlib.sha256(identity.encode("utf-8")).hexdigest()
+        seen_fingerprints.add(fingerprint)
+        job_defaults = {
+            "source_record": source_record,
+            "external_id": external_id,
+            "title": title,
+            "description": description,
+            "location": location,
+            "employment_type": employment_type,
+            "url": url,
+            "published_on": published_on,
+            "valid_through": valid_through,
+            "last_seen_at": observed_at,
+            "active": True,
+            "metadata": {"schema_type": "JobPosting"},
+        }
+        JobPosting.objects.update_or_create(
+            company=company,
+            fingerprint=fingerprint,
+            defaults=job_defaults,
+            create_defaults={**job_defaults, "first_seen_at": observed_at},
+        )
+    JobPosting.objects.filter(
+        company=company,
+        source_record__source=source_record.source,
+        source_record__external_id=source_record.external_id,
+        active=True,
+    ).exclude(fingerprint__in=seen_fingerprints).update(active=False, last_seen_at=observed_at)
+    return len(seen_fingerprints)
+
+
 @transaction.atomic
 def persist_page(company: Company, *, url: str, status: int, content_type: str, title: str, text: str, observed_at=None) -> CrawlOutcome:
     observed_at = observed_at or timezone.now()
@@ -171,6 +304,26 @@ def persist_page(company: Company, *, url: str, status: int, content_type: str, 
     return CrawlOutcome(page, True, content_changed)
 
 
+def _persist_document(company: Company, result, document: ExtractedDocument):
+    observed_at = timezone.now()
+    outcome = persist_page(
+        company,
+        url=result.url,
+        status=result.status,
+        content_type=result.content_type,
+        title=document.title,
+        text=document.text,
+        observed_at=observed_at,
+    )
+    jobs_found = persist_job_postings(
+        company,
+        source_record=outcome.page.source_record,
+        structured_data=document.structured_data,
+        observed_at=observed_at,
+    )
+    return outcome, jobs_found
+
+
 def crawl_company_website(company: Company) -> CrawlBatchOutcome:
     url = company_website_url(company)
     robots = _robots_policy(url)
@@ -179,17 +332,11 @@ def crawl_company_website(company: Company) -> CrawlBatchOutcome:
     result = fetch_url(url)
     if result.status != 200:
         raise WebsiteFetchError(f"Website respondeu com HTTP {result.status}.")
-    document = extract_html_document(result.body)
-    if not document.text.strip():
+    document = extract_html_document(result.body, result.content_type)
+    if not document.text.strip() and not _job_posting_objects(document.structured_data):
         raise WebsiteFetchError("Website não produziu texto útil.")
-    outcomes = [persist_page(
-        company,
-        url=result.url,
-        status=result.status,
-        content_type=result.content_type,
-        title=document.title,
-        text=document.text,
-    )]
+    first_outcome, jobs_found = _persist_document(company, result, document)
+    outcomes = [first_outcome]
     candidate_urls = discover_priority_urls(
         result.url,
         document.links,
@@ -203,26 +350,25 @@ def crawl_company_website(company: Company) -> CrawlBatchOutcome:
             candidate_result = fetch_url(candidate_url)
             if candidate_result.status != 200:
                 raise WebsiteFetchError(f"Página respondeu com HTTP {candidate_result.status}.")
-            candidate_document = extract_html_document(candidate_result.body)
-            if not candidate_document.text.strip():
-                raise WebsiteFetchError("Página não produziu texto útil.")
-            outcomes.append(
-                persist_page(
-                    company,
-                    url=candidate_result.url,
-                    status=candidate_result.status,
-                    content_type=candidate_result.content_type,
-                    title=candidate_document.title,
-                    text=candidate_document.text,
-                )
+            candidate_document = extract_html_document(
+                candidate_result.body, candidate_result.content_type
             )
+            if not candidate_document.text.strip() and not _job_posting_objects(
+                candidate_document.structured_data
+            ):
+                raise WebsiteFetchError("Página não produziu texto útil.")
+            candidate_outcome, candidate_jobs = _persist_document(
+                company, candidate_result, candidate_document
+            )
+            outcomes.append(candidate_outcome)
+            jobs_found += candidate_jobs
         except (UnsafeWebsiteUrl, WebsiteFetchError):
             pages_failed += 1
     if not company.website:
         company.website = result.url
         company.website_domain = (urlsplit(result.url).hostname or "").removeprefix("www.")
         company.save(update_fields=("website", "website_domain", "updated_at"))
-    return CrawlBatchOutcome(tuple(outcomes), 1 + len(candidate_urls), pages_failed)
+    return CrawlBatchOutcome(tuple(outcomes), 1 + len(candidate_urls), pages_failed, jobs_found)
 
 
 def enqueue_website_crawl(company: Company, *, as_of=None) -> tuple[Job, bool]:

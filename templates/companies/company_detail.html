@@ -37,6 +37,15 @@
 </article>
 
 <article class="panel table-panel">
+  <div class="panel-head"><h2>Vagas encontradas</h2><span>{{ job_postings|length }} ativa{{ job_postings|length|pluralize }} de até 100 exibidas</span></div>
+  {% if job_postings %}
+  <table><thead><tr><th>Vaga</th><th>Local</th><th>Tipo</th><th>Publicada</th></tr></thead><tbody>
+    {% for posting in job_postings %}<tr><td>{% if posting.url %}<a class="table-link" href="{{ posting.url }}" target="_blank" rel="noopener noreferrer">{{ posting.title }}</a>{% else %}<strong>{{ posting.title }}</strong>{% endif %}<br><small>{{ posting.description|truncatechars:180 }}</small></td><td>{{ posting.location|default:"—" }}</td><td>{{ posting.employment_type|default:"—" }}</td><td>{{ posting.published_on|date:"d/m/Y"|default:"—" }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<div class="empty-state small">Nenhuma vaga estruturada encontrada nas páginas já coletadas.</div>{% endif %}
+</article>
+
+<article class="panel table-panel">
   <div class="panel-head"><h2>Páginas do website</h2><span>Somente texto útil; HTML bruto descartado</span></div>
   {% if website_pages %}
   <table><thead><tr><th>Página</th><th>Tipo</th><th>Tamanho</th><th>Coletada</th></tr></thead><tbody>

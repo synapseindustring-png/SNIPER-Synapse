@@ -179,6 +179,11 @@ O crawler de websites é uma superfície de SSRF e deverá:
 
 Dados sensíveis e secrets nunca entram em logs. Conteúdo coletado é tratado como entrada não confiável.
 
+O mesmo parser extrai, com limite próprio, objetos JSON-LD `JobPosting` das respostas já
+baixadas. Eles são normalizados em `JobPosting`, ligados ao `SourceRecord` da página e
+oferecidos ao detector pelos campos `job_title` e `job_description`; nenhum link de vaga é
+visitado automaticamente.
+
 ## Observabilidade
 
 - logs JSON com `request_id`, `query_run_id`, `job_id`, `source` e `company_id`;
@@ -197,4 +202,3 @@ Dados sensíveis e secrets nunca entram em logs. Conteúdo coletado é tratado c
 - changedetection.io;
 - réplica nacional completa de CNPJ;
 - LLM ou classificação sem regras explícitas.
-

@@ -170,6 +170,10 @@ mais ampla/recorrente, Overture/OSM e Maps permanecem pendentes.
 
 ## Fase 6 — intenção por vagas
 
+Status: iniciada. Páginas prioritárias já são coletadas e vagas em JSON-LD `JobPosting`
+são normalizadas, deduplicadas, desativadas quando removidas e integradas ao detector local.
+Adapters externos de vagas e as políticas específicas de revisão/backoff permanecem pendentes.
+
 ### Entregáveis
 
 - páginas de carreiras no crawler;

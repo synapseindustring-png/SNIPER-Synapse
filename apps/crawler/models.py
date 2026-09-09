@@ -46,3 +46,42 @@ class WebsitePage(models.Model):
 
     def __str__(self):
         return f"{self.company} · {self.title or self.url}"
+
+
+class JobPosting(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    company = models.ForeignKey(
+        "companies.Company", on_delete=models.CASCADE, related_name="job_postings"
+    )
+    source_record = models.ForeignKey(
+        "sources.SourceRecord", on_delete=models.PROTECT, related_name="job_postings"
+    )
+    fingerprint = models.CharField(max_length=64)
+    external_id = models.CharField(max_length=500, blank=True)
+    title = models.CharField(max_length=500)
+    description = models.TextField(blank=True)
+    location = models.CharField(max_length=500, blank=True)
+    employment_type = models.CharField(max_length=120, blank=True)
+    url = models.URLField(max_length=1000, blank=True)
+    published_on = models.DateField(null=True, blank=True)
+    valid_through = models.DateField(null=True, blank=True)
+    first_seen_at = models.DateTimeField()
+    last_seen_at = models.DateTimeField()
+    active = models.BooleanField(default=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ("-published_on", "-last_seen_at", "title")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("company", "fingerprint"), name="unique_company_job_fingerprint"
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=("company", "active", "published_on"), name="job_company_active_idx"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.company} · {self.title}"

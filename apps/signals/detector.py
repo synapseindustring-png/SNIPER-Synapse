@@ -5,8 +5,10 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from django.db import transaction
+from django.db.models import Prefetch
 
 from apps.companies.models import Company
+from apps.crawler.models import JobPosting
 
 from .models import Signal, SignalDetection, SignalRule
 
@@ -27,6 +29,14 @@ def _normalize(value: str) -> str:
 
 
 def _payload_value(record, path: str):
+    if path in {"job_title", "job_description"}:
+        attribute = "title" if path == "job_title" else "description"
+        values = [
+            getattr(posting, attribute)
+            for posting in getattr(record, "active_job_postings", ())
+            if getattr(posting, attribute)
+        ]
+        return "\n".join(values) or None
     if path in {"content", "text"}:
         try:
             return record.website_page.extracted_text
@@ -70,7 +80,14 @@ def detect_company_signals(company: Company) -> DetectionStats:
     rules = list(SignalRule.objects.filter(active=True))
     seen_signal_ids = set()
     records_scanned = rules_evaluated = signals_matched = signals_created = 0
-    for record in company.source_records.select_related("website_page").order_by("collected_at").iterator(chunk_size=100):
+    records = company.source_records.select_related("website_page").prefetch_related(
+        Prefetch(
+            "job_postings",
+            queryset=JobPosting.objects.filter(active=True),
+            to_attr="active_job_postings",
+        )
+    ).order_by("collected_at")
+    for record in records.iterator(chunk_size=100):
         records_scanned += 1
         for rule in rules:
             rules_evaluated += 1

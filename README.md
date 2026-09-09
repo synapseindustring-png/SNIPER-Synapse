@@ -41,6 +41,9 @@ e URLs com parâmetros são ignorados. Ele fixa a conexão no IP
 público previamente validado, revalida redirects, bloqueia redes privadas e credenciais em
 URL, respeita `robots.txt` e limita tempo, bytes e tipo de
 conteúdo. Somente texto visível limitado e seu hash são persistidos; o HTML é descartado.
+JSON-LD `JobPosting` presente nessas mesmas respostas é convertido em vagas normalizadas,
+deduplicadas e exibidas no detalhe da empresa. Essa etapa não faz novas requisições e as
+vagas estruturadas alimentam o detector de sinais e o scoring.
 
 Decisões centrais:
 

@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
@@ -9,9 +10,14 @@ from apps.jobs.services import execute_job
 
 from .client import FetchResult
 from .extraction import extract_html_document, extract_html_text
-from .models import WebsitePage
+from .models import JobPosting, WebsitePage
 from .security import UnsafeWebsiteUrl, canonicalize_url, resolve_public_url
-from .services import crawl_company_website, discover_priority_urls, persist_page
+from .services import (
+    crawl_company_website,
+    discover_priority_urls,
+    persist_job_postings,
+    persist_page,
+)
 
 
 class WebsiteSecurityTests(TestCase):
@@ -59,6 +65,24 @@ class WebsiteExtractionTests(TestCase):
             b'<script><a href="/private">Privado</a></script>'
         )
         self.assertEqual(document.links, ("/sobre",))
+
+    def test_extracts_bounded_json_ld_without_exposing_it_as_visible_text(self):
+        payload = {
+            "@context": "https://schema.org",
+            "@type": "JobPosting",
+            "title": "Planejador de Manutenção",
+        }
+        document = extract_html_document(
+            (
+                '<main>Página de carreiras</main><script type="application/ld+json">'
+                + json.dumps(payload)
+                + "</script><script type=\"application/ld+json\">inválido</script>"
+            ).encode()
+        )
+
+        self.assertEqual(document.structured_data[0]["@type"], "JobPosting")
+        self.assertEqual(len(document.structured_data), 1)
+        self.assertNotIn("Planejador", document.text)
 
     def test_prioritization_is_same_site_queryless_and_bounded(self):
         urls = discover_priority_urls(
@@ -121,15 +145,72 @@ class WebsitePersistenceTests(TestCase):
         self.assertEqual(WebsitePage.objects.count(), 2)
         self.assertEqual(WebsitePage.objects.filter(current=True).count(), 1)
 
+    def test_job_postings_are_normalized_deduplicated_and_deactivated(self):
+        page = persist_page(
+            self.company,
+            url="https://example.com/carreiras",
+            status=200,
+            content_type="text/html",
+            title="Carreiras",
+            text="Vagas abertas",
+        ).page
+        payload = {
+            "@type": "JobPosting",
+            "identifier": {"value": "PCM-42"},
+            "title": "Planejador de Manutenção",
+            "description": "<p>Vaga de PCM e melhoria contínua.</p>",
+            "datePosted": "2026-09-01T10:30:00-03:00",
+            "employmentType": ["FULL_TIME", "ONSITE"],
+            "jobLocation": {
+                "address": {
+                    "addressLocality": "Campinas",
+                    "addressRegion": "SP",
+                    "addressCountry": "BR",
+                }
+            },
+            "url": "https://jobs.example.com/vagas/pcm-42",
+        }
+
+        first = persist_job_postings(
+            self.company, source_record=page.source_record, structured_data=[payload]
+        )
+        second = persist_job_postings(
+            self.company, source_record=page.source_record, structured_data=[payload]
+        )
+
+        self.assertEqual((first, second), (1, 1))
+        self.assertEqual(JobPosting.objects.count(), 1)
+        posting = JobPosting.objects.get()
+        self.assertEqual(posting.location, "Campinas/SP/BR")
+        self.assertEqual(posting.description, "Vaga de PCM e melhoria contínua.")
+        self.assertEqual(posting.published_on.isoformat(), "2026-09-01")
+
+        persist_job_postings(
+            self.company, source_record=page.source_record, structured_data=[]
+        )
+        posting.refresh_from_db()
+        self.assertFalse(posting.active)
+
     @patch("apps.crawler.services.fetch_url")
     def test_crawl_job_persists_page_and_enqueues_scoring(self, fetch_url):
+        job_payload = json.dumps(
+            {
+                "@context": "https://schema.org",
+                "@type": "JobPosting",
+                "title": "Vaga de PCM",
+                "description": "Planejador de manutenção",
+                "url": "https://example.com/vagas/pcm",
+                "datePosted": "2026-09-01",
+            }
+        ).encode()
         fetch_url.side_effect = [
             FetchResult("https://example.com/robots.txt", 404, "text/plain", b""),
             FetchResult(
                 "https://example.com/",
                 200,
                 "text/html",
-                b"<html><title>Alfa</title><body>Projeto de OEE</body></html>",
+                b"<html><title>Alfa</title><body>Projeto de OEE</body>"
+                b'<script type="application/ld+json">' + job_payload + b"</script></html>",
             ),
         ]
         job = Job.objects.create(
@@ -140,7 +221,9 @@ class WebsitePersistenceTests(TestCase):
         execute_job(job)
 
         self.assertEqual(WebsitePage.objects.count(), 1)
+        self.assertEqual(JobPosting.objects.filter(active=True).count(), 1)
         self.assertTrue(self.company.signals.filter(signal_type="oee").exists())
+        self.assertTrue(self.company.signals.filter(signal_type="contratacao").exists())
         self.assertTrue(Job.objects.filter(type=Job.Type.CALCULATE_SCORE).exists())
 
     @override_settings(CRAWLER_MAX_PAGES=3)
