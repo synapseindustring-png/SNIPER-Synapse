@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.jobs.models import Job
+from apps.crawler.services import WebsiteFetchError, enqueue_website_crawl
 from apps.scoring.models import ScoreContribution, ScoreSnapshot
 from apps.scoring.services import enqueue_company_score
 from apps.signals.services import enqueue_signal_detection
@@ -102,6 +103,12 @@ def company_detail(request, pk):
         payload__company_id=str(company.pk),
     ).exists()
     signals = company.signals.filter(active=True).select_related("source_record__source")[:100]
+    pending_crawl_job = Job.objects.filter(
+        type=Job.Type.CRAWL_WEBSITE,
+        status__in=(Job.Status.PENDING, Job.Status.RUNNING, Job.Status.RETRY_SCHEDULED),
+        payload__company_id=str(company.pk),
+    ).exists()
+    website_pages = company.website_pages.filter(current=True)[:20]
     return render(
         request,
         "companies/company_detail.html",
@@ -112,6 +119,8 @@ def company_detail(request, pk):
             "pending_score_job": pending_score_job,
             "pending_signal_job": pending_signal_job,
             "signals": signals,
+            "pending_crawl_job": pending_crawl_job,
+            "website_pages": website_pages,
         },
     )
 
@@ -140,4 +149,20 @@ def company_detect_signals(request, pk):
         request,
         "Detecção enviada ao worker." if created else "As evidências atuais já foram analisadas ou estão na fila.",
     )
+    return redirect("company-detail", pk=company.pk)
+
+
+@login_required
+@require_POST
+def company_crawl_website(request, pk):
+    company = get_object_or_404(Company, pk=pk, deleted_at__isnull=True)
+    try:
+        _, created = enqueue_website_crawl(company)
+    except WebsiteFetchError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.info(
+            request,
+            "Coleta enviada ao worker." if created else "Este website já foi coletado hoje ou está na fila.",
+        )
     return redirect("company-detail", pk=company.pk)

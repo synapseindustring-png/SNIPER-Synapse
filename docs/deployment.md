@@ -56,6 +56,8 @@ CRAWLER_USER_AGENT
 CRAWLER_CONTACT
 CRAWLER_TIMEOUT_SECONDS
 CRAWLER_MAX_BYTES
+CRAWLER_MAX_TEXT_CHARS
+CRAWLER_MAX_REDIRECTS
 MAPS_BASE_URL
 MAPS_CONCURRENCY
 ```
@@ -137,4 +139,6 @@ CPU/RAM do Maps serão medidos com uma única página/browser e baixa concorrên
 
 ## Observação sobre Git
 
-O repositório remoto e as credenciais serão configurados posteriormente. O desenvolvimento local não deve incluir tokens ou assumir um provedor Git específico.
+O repositório oficial é `synapseindustring-png/SNIPER-Synapse`. Tokens continuam somente
+no ambiente local/Coolify; `.env` e o diretório `env/` nunca entram no Git nem no contexto
+de build do Docker.

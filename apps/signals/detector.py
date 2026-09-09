@@ -26,8 +26,13 @@ def _normalize(value: str) -> str:
     return " ".join(re.sub(r"[^a-z0-9]+", " ", value).split())
 
 
-def _payload_value(payload, path: str):
-    value = payload
+def _payload_value(record, path: str):
+    if path in {"content", "text"}:
+        try:
+            return record.website_page.extracted_text
+        except AttributeError:
+            pass
+    value = record.payload
     for part in path.split("."):
         if not isinstance(value, dict) or part not in value:
             return None
@@ -65,13 +70,13 @@ def detect_company_signals(company: Company) -> DetectionStats:
     rules = list(SignalRule.objects.filter(active=True))
     seen_signal_ids = set()
     records_scanned = rules_evaluated = signals_matched = signals_created = 0
-    for record in company.source_records.order_by("collected_at").iterator(chunk_size=100):
+    for record in company.source_records.select_related("website_page").order_by("collected_at").iterator(chunk_size=100):
         records_scanned += 1
         for rule in rules:
             rules_evaluated += 1
             match = None
             for field_name in rule.source_fields:
-                value = _payload_value(record.payload, field_name)
+                value = _payload_value(record, field_name)
                 if value is None:
                     continue
                 terms = _matched_terms(str(value), rule)

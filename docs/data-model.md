@@ -146,9 +146,12 @@ Uma rotina determinística de precedência escolhe o valor canônico. A escolha 
 
 ### `website_page`
 
-Campos: empresa, URL canônica, tipo inferido da página, título, texto extraído, hash, status HTTP, data da coleta, última alteração e source record.
+Campos implementados: empresa, source record, URL canônica, tipo inferido, título, texto
+extraído, hash, status HTTP, content type, datas de observação/coleta/última visualização e
+estado atual.
 
-O texto terá limite de tamanho. HTML bruto será temporário por padrão.
+O texto possui limite configurável. HTML bruto é descartado após a extração e versões
+inalteradas são deduplicadas por empresa, URL e hash.
 
 ### `job_posting`
 

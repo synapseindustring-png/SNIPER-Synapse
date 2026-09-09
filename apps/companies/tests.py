@@ -115,3 +115,17 @@ class CompanyViewsTests(TestCase):
         self.assertRedirects(first, reverse("company-detail", args=[self.company.pk]))
         self.assertRedirects(second, reverse("company-detail", args=[self.company.pk]))
         self.assertEqual(Job.objects.filter(type=Job.Type.DETECT_SIGNALS).count(), 1)
+
+    def test_website_action_requires_a_url_and_is_daily_idempotent(self):
+        missing = self.client.post(
+            reverse("company-crawl-website", args=[self.company.pk])
+        )
+        self.assertRedirects(missing, reverse("company-detail", args=[self.company.pk]))
+        self.assertFalse(Job.objects.filter(type=Job.Type.CRAWL_WEBSITE).exists())
+
+        self.company.website = "https://example.com/"
+        self.company.website_domain = "example.com"
+        self.company.save(update_fields=("website", "website_domain", "updated_at"))
+        self.client.post(reverse("company-crawl-website", args=[self.company.pk]))
+        self.client.post(reverse("company-crawl-website", args=[self.company.pk]))
+        self.assertEqual(Job.objects.filter(type=Job.Type.CRAWL_WEBSITE).count(), 1)

@@ -135,4 +135,20 @@ def execute_job(job: Job) -> None:
         )
         enqueue_company_score(company)
         return
+    if job.type == Job.Type.CRAWL_WEBSITE:
+        from apps.companies.models import Company
+        from apps.crawler.services import crawl_company_website
+        from apps.scoring.services import enqueue_company_score
+        from apps.signals.detector import detect_company_signals
+
+        company = Company.objects.get(pk=job.payload["company_id"])
+        crawl_company_website(company)
+        stats = detect_company_signals(company)
+        enqueue_company_score(company)
+        Job.objects.filter(pk=job.pk).update(
+            records_processed=1,
+            records_success=1,
+            records_failed=0,
+        )
+        return
     raise NotImplementedError(f"Handler not implemented for job type {job.type}")

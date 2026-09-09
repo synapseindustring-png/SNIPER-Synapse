@@ -143,6 +143,12 @@ publicação/simulação avançada e fluxo completo de parceiros continuam pende
 
 ## Fase 5 — descoberta aberta e enriquecimento
 
+Status: iniciada. O primeiro corte do WebsiteAdapter coleta a página inicial de domínios
+já conhecidos com proteção SSRF, DNS/IP fixado, redirects revalidados, `robots.txt`,
+timeouts, limite de bytes e tipos de conteúdo. Texto visível é extraído sem JavaScript,
+versionado por hash e conectado automaticamente à detecção de sinais e scoring. Descoberta
+de páginas internas, Overture/OSM e Maps permanecem pendentes.
+
 ### Entregáveis
 
 - Overture/OSM atrás de adapter;

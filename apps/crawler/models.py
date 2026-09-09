@@ -1,0 +1,48 @@
+import uuid
+
+from django.db import models
+
+
+class WebsitePage(models.Model):
+    class PageType(models.TextChoices):
+        HOME = "HOME", "Inicial"
+        ABOUT = "ABOUT", "Sobre"
+        PRODUCT = "PRODUCT", "Produto/solução"
+        CASE = "CASE", "Caso/cliente"
+        NEWS = "NEWS", "Notícia/blog"
+        CAREERS = "CAREERS", "Carreiras"
+        OTHER = "OTHER", "Outra"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    company = models.ForeignKey(
+        "companies.Company", on_delete=models.CASCADE, related_name="website_pages"
+    )
+    source_record = models.OneToOneField(
+        "sources.SourceRecord", on_delete=models.PROTECT, related_name="website_page"
+    )
+    url = models.URLField(max_length=1000)
+    page_type = models.CharField(max_length=16, choices=PageType.choices, default=PageType.OTHER)
+    title = models.CharField(max_length=500, blank=True)
+    extracted_text = models.TextField()
+    content_hash = models.CharField(max_length=64)
+    http_status = models.PositiveSmallIntegerField()
+    content_type = models.CharField(max_length=120)
+    observed_at = models.DateTimeField()
+    collected_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField()
+    current = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ("-observed_at", "url")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("company", "url", "content_hash"),
+                name="unique_company_page_content",
+            )
+        ]
+        indexes = [
+            models.Index(fields=("company", "current", "observed_at"), name="page_company_current_idx")
+        ]
+
+    def __str__(self):
+        return f"{self.company} · {self.title or self.url}"

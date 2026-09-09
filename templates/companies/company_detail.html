@@ -7,7 +7,7 @@
 {% for message in messages %}<div class="flash {{ message.tags }}">{{ message }}</div>{% endfor %}
 <div class="page-actions">
   <div><p class="eyebrow">{{ company.cnpj|default:"CNPJ não informado" }}</p><h2 class="page-title">{{ company }}</h2></div>
-  <div class="action-group"><form method="post" action="{% url 'company-detect-signals' company.pk %}">{% csrf_token %}<button class="button secondary" type="submit"{% if pending_signal_job or not company.recent_source_records %} disabled{% endif %}>{% if pending_signal_job %}Detecção na fila{% else %}Detectar sinais locais{% endif %}</button></form><form method="post" action="{% url 'company-score' company.pk %}">{% csrf_token %}<button class="button" type="submit"{% if pending_score_job %} disabled{% endif %}>{% if pending_score_job %}Cálculo na fila{% else %}Calcular score{% endif %}</button></form><a class="button secondary" href="{% url 'company-list' %}">Voltar à lista</a></div>
+  <div class="action-group"><form method="post" action="{% url 'company-crawl-website' company.pk %}">{% csrf_token %}<button class="button secondary" type="submit"{% if pending_crawl_job or not company.website and not company.website_domain %} disabled{% endif %}>{% if pending_crawl_job %}Coleta na fila{% else %}Coletar website{% endif %}</button></form><form method="post" action="{% url 'company-detect-signals' company.pk %}">{% csrf_token %}<button class="button secondary" type="submit"{% if pending_signal_job or not company.recent_source_records %} disabled{% endif %}>{% if pending_signal_job %}Detecção na fila{% else %}Detectar sinais locais{% endif %}</button></form><form method="post" action="{% url 'company-score' company.pk %}">{% csrf_token %}<button class="button" type="submit"{% if pending_score_job %} disabled{% endif %}>{% if pending_score_job %}Cálculo na fila{% else %}Calcular score{% endif %}</button></form><a class="button secondary" href="{% url 'company-list' %}">Voltar à lista</a></div>
 </div>
 
 {% if snapshot %}
@@ -34,6 +34,15 @@
     {% for signal in signals %}<tr><td><span class="status">{{ signal.signal_type }}</span></td><td>{{ signal.get_product_display }}</td><td><strong>{{ signal.title }}</strong><br><small>{{ signal.evidence_excerpt }}</small></td><td>{% if signal.source_record %}{{ signal.source_record.source.name }}{% else %}Manual{% endif %}</td><td>{{ signal.observed_at|date:"d/m/Y H:i" }}</td></tr>{% endfor %}
   </tbody></table>
   {% else %}<div class="empty-state small">Nenhum sinal ativo. A detecção local analisa somente evidências já coletadas.</div>{% endif %}
+</article>
+
+<article class="panel table-panel">
+  <div class="panel-head"><h2>Páginas do website</h2><span>Somente texto útil; HTML bruto descartado</span></div>
+  {% if website_pages %}
+  <table><thead><tr><th>Página</th><th>Tipo</th><th>Tamanho</th><th>Coletada</th></tr></thead><tbody>
+    {% for page in website_pages %}<tr><td><a class="table-link" href="{{ page.url }}" target="_blank" rel="noopener noreferrer">{{ page.title|default:page.url }}</a><br><small>{{ page.url }}</small></td><td>{{ page.get_page_type_display }}</td><td>{{ page.extracted_text|length }} caracteres</td><td>{{ page.observed_at|date:"d/m/Y H:i" }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<div class="empty-state small">Nenhuma página coletada. Cadastre um website público para habilitar a coleta.</div>{% endif %}
 </article>
 
 <div class="detail-grid">

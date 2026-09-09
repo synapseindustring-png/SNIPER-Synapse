@@ -35,6 +35,11 @@ palavras-chave com limites de palavra, preserva o trecho de evidência e agenda 
 do score. Onze regras seed cobrem temas iniciais como PCM, manutenção, OEE, MES, produção,
 telemetria, automação, expansão, contratação, ERP e uso de planilhas.
 
+O primeiro corte do WebsiteAdapter coleta apenas o website já cadastrado da empresa. Ele
+fixa a conexão no IP público previamente validado, revalida redirects, bloqueia redes
+privadas e credenciais em URL, respeita `robots.txt` e limita tempo, bytes e tipo de
+conteúdo. Somente texto visível limitado e seu hash são persistidos; o HTML é descartado.
+
 Decisões centrais:
 
 - descoberta iniciada por consultas, sem upload manual de listas;

@@ -14,6 +14,12 @@ CNPJ_DOWNLOAD_TIMEOUT_SECONDS = int(os.getenv("CNPJ_DOWNLOAD_TIMEOUT_SECONDS", "
 CNPJ_PREVIEW_MAX_RESULTS = int(os.getenv("CNPJ_PREVIEW_MAX_RESULTS", "500"))
 CNPJ_MAX_PERSISTED_MATCHES = int(os.getenv("CNPJ_MAX_PERSISTED_MATCHES", "10000"))
 CNPJ_TEMP_MAX_AGE_SECONDS = int(os.getenv("CNPJ_TEMP_MAX_AGE_SECONDS", "21600"))
+CRAWLER_USER_AGENT = os.getenv("CRAWLER_USER_AGENT", "SynapseSniper/0.1").strip()
+CRAWLER_CONTACT = os.getenv("CRAWLER_CONTACT", "").strip()
+CRAWLER_TIMEOUT_SECONDS = int(os.getenv("CRAWLER_TIMEOUT_SECONDS", "20"))
+CRAWLER_MAX_BYTES = int(os.getenv("CRAWLER_MAX_BYTES", "5000000"))
+CRAWLER_MAX_TEXT_CHARS = int(os.getenv("CRAWLER_MAX_TEXT_CHARS", "200000"))
+CRAWLER_MAX_REDIRECTS = int(os.getenv("CRAWLER_MAX_REDIRECTS", "3"))
 
 
 def env_bool(name: str, default: bool = False) -> bool:
@@ -44,6 +50,7 @@ INSTALLED_APPS = [
     "apps.companies",
     "apps.discovery",
     "apps.sources",
+    "apps.crawler",
     "apps.signals",
     "apps.scoring",
 ]
