@@ -20,6 +20,7 @@ CRAWLER_TIMEOUT_SECONDS = int(os.getenv("CRAWLER_TIMEOUT_SECONDS", "20"))
 CRAWLER_MAX_BYTES = int(os.getenv("CRAWLER_MAX_BYTES", "5000000"))
 CRAWLER_MAX_TEXT_CHARS = int(os.getenv("CRAWLER_MAX_TEXT_CHARS", "200000"))
 CRAWLER_MAX_REDIRECTS = int(os.getenv("CRAWLER_MAX_REDIRECTS", "3"))
+CRAWLER_MAX_PAGES = int(os.getenv("CRAWLER_MAX_PAGES", "5"))
 
 
 def env_bool(name: str, default: bool = False) -> bool:

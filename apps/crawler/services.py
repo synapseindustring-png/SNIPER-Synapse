@@ -1,8 +1,9 @@
 import hashlib
 from dataclasses import dataclass
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urljoin, urlsplit, urlunsplit
 from urllib.robotparser import RobotFileParser
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -11,9 +12,9 @@ from apps.jobs.models import Job
 from apps.sources.models import Source, SourceRecord
 
 from .client import WebsiteFetchError, fetch_url
-from .extraction import extract_html_text
+from .extraction import extract_html_document
 from .models import WebsitePage
-from .security import canonicalize_url
+from .security import UnsafeWebsiteUrl, canonicalize_url, same_site
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,6 +22,13 @@ class CrawlOutcome:
     page: WebsitePage
     page_created: bool
     content_changed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class CrawlBatchOutcome:
+    pages: tuple[CrawlOutcome, ...]
+    pages_attempted: int
+    pages_failed: int
 
 
 def company_website_url(company: Company) -> str:
@@ -35,19 +43,61 @@ def company_website_url(company: Company) -> str:
     return url
 
 
-def _robots_allows(url: str) -> bool:
+def _robots_policy(url: str) -> RobotFileParser | None:
     parsed = urlsplit(url)
     robots_url = urlunsplit((parsed.scheme, parsed.netloc, "/robots.txt", "", ""))
     try:
         result = fetch_url(robots_url, accepted_types=("text/plain", "text/html"))
     except WebsiteFetchError:
-        return True
+        return None
     if result.status != 200:
-        return True
+        return None
     parser = RobotFileParser()
     parser.set_url(robots_url)
     parser.parse(result.body.decode("utf-8", errors="replace").splitlines())
-    return parser.can_fetch("SynapseSniper", url)
+    return parser
+
+
+PRIORITY_PATH_TERMS = (
+    ("sobre", "about", "empresa"),
+    ("solucao", "solution", "produto", "servico"),
+    ("case", "cliente", "industria"),
+    ("noticia", "news", "blog"),
+    ("carreira", "trabalhe", "vaga", "jobs"),
+)
+
+
+def discover_priority_urls(base_url: str, links, *, limit: int) -> list[str]:
+    candidates = {}
+    base_scheme = urlsplit(base_url).scheme
+    for link in links:
+        try:
+            candidate = canonicalize_url(urljoin(base_url, link))
+        except (UnsafeWebsiteUrl, ValueError):
+            continue
+        parsed = urlsplit(candidate)
+        if parsed.query or not same_site(base_url, candidate):
+            continue
+        if base_scheme == "https" and parsed.scheme != "https":
+            continue
+        path = parsed.path.casefold()
+        priority = next(
+            (
+                index
+                for index, terms in enumerate(PRIORITY_PATH_TERMS)
+                if any(term in path for term in terms)
+            ),
+            None,
+        )
+        if priority is None or candidate == canonicalize_url(base_url):
+            continue
+        candidates[candidate] = min(candidates.get(candidate, priority), priority)
+    return [
+        url
+        for url, _ in sorted(candidates.items(), key=lambda item: (item[1], len(item[0]), item[0]))[
+            : max(0, limit)
+        ]
+    ]
 
 
 def _page_type(url: str) -> str:
@@ -121,29 +171,58 @@ def persist_page(company: Company, *, url: str, status: int, content_type: str, 
     return CrawlOutcome(page, True, content_changed)
 
 
-def crawl_company_website(company: Company) -> CrawlOutcome:
+def crawl_company_website(company: Company) -> CrawlBatchOutcome:
     url = company_website_url(company)
-    if not _robots_allows(url):
+    robots = _robots_policy(url)
+    if robots and not robots.can_fetch(settings.CRAWLER_USER_AGENT, url):
         raise WebsiteFetchError("A coleta foi bloqueada pelo robots.txt do website.")
     result = fetch_url(url)
     if result.status != 200:
         raise WebsiteFetchError(f"Website respondeu com HTTP {result.status}.")
-    title, text = extract_html_text(result.body)
-    if not text.strip():
+    document = extract_html_document(result.body)
+    if not document.text.strip():
         raise WebsiteFetchError("Website não produziu texto útil.")
-    outcome = persist_page(
+    outcomes = [persist_page(
         company,
         url=result.url,
         status=result.status,
         content_type=result.content_type,
-        title=title,
-        text=text,
+        title=document.title,
+        text=document.text,
+    )]
+    candidate_urls = discover_priority_urls(
+        result.url,
+        document.links,
+        limit=max(0, settings.CRAWLER_MAX_PAGES - 1),
     )
+    pages_failed = 0
+    for candidate_url in candidate_urls:
+        if robots and not robots.can_fetch(settings.CRAWLER_USER_AGENT, candidate_url):
+            continue
+        try:
+            candidate_result = fetch_url(candidate_url)
+            if candidate_result.status != 200:
+                raise WebsiteFetchError(f"Página respondeu com HTTP {candidate_result.status}.")
+            candidate_document = extract_html_document(candidate_result.body)
+            if not candidate_document.text.strip():
+                raise WebsiteFetchError("Página não produziu texto útil.")
+            outcomes.append(
+                persist_page(
+                    company,
+                    url=candidate_result.url,
+                    status=candidate_result.status,
+                    content_type=candidate_result.content_type,
+                    title=candidate_document.title,
+                    text=candidate_document.text,
+                )
+            )
+        except (UnsafeWebsiteUrl, WebsiteFetchError):
+            pages_failed += 1
     if not company.website:
         company.website = result.url
         company.website_domain = (urlsplit(result.url).hostname or "").removeprefix("www.")
         company.save(update_fields=("website", "website_domain", "updated_at"))
-    return outcome
+    return CrawlBatchOutcome(tuple(outcomes), 1 + len(candidate_urls), pages_failed)
 
 
 def enqueue_website_crawl(company: Company, *, as_of=None) -> tuple[Job, bool]:

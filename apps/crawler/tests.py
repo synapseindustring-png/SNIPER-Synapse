@@ -8,10 +8,10 @@ from apps.jobs.models import Job
 from apps.jobs.services import execute_job
 
 from .client import FetchResult
-from .extraction import extract_html_text
+from .extraction import extract_html_document, extract_html_text
 from .models import WebsitePage
 from .security import UnsafeWebsiteUrl, canonicalize_url, resolve_public_url
-from .services import persist_page
+from .services import crawl_company_website, discover_priority_urls, persist_page
 
 
 class WebsiteSecurityTests(TestCase):
@@ -52,6 +52,30 @@ class WebsiteExtractionTests(TestCase):
         self.assertIn("OEE e PCM", text)
         self.assertNotIn("secret-css", text)
         self.assertNotIn("secret-js", text)
+
+    def test_extracts_unique_links_only_from_visible_markup(self):
+        document = extract_html_document(
+            b'<a href="/sobre">Sobre</a><a href="/sobre">Repetido</a>'
+            b'<script><a href="/private">Privado</a></script>'
+        )
+        self.assertEqual(document.links, ("/sobre",))
+
+    def test_prioritization_is_same_site_queryless_and_bounded(self):
+        urls = discover_priority_urls(
+            "https://example.com/",
+            [
+                "/blog/noticia?pagina=2",
+                "https://evil.example.net/sobre",
+                "/carreiras",
+                "/produtos/mes",
+                "/sobre",
+            ],
+            limit=2,
+        )
+        self.assertEqual(
+            urls,
+            ["https://example.com/sobre", "https://example.com/produtos/mes"],
+        )
 
 
 class WebsitePersistenceTests(TestCase):
@@ -118,3 +142,38 @@ class WebsitePersistenceTests(TestCase):
         self.assertEqual(WebsitePage.objects.count(), 1)
         self.assertTrue(self.company.signals.filter(signal_type="oee").exists())
         self.assertTrue(Job.objects.filter(type=Job.Type.CALCULATE_SCORE).exists())
+
+    @override_settings(CRAWLER_MAX_PAGES=3)
+    @patch("apps.crawler.services.fetch_url")
+    def test_crawl_follows_only_the_bounded_priority_pages(self, fetch_url):
+        fetch_url.side_effect = [
+            FetchResult("https://example.com/robots.txt", 404, "text/plain", b""),
+            FetchResult(
+                "https://example.com/",
+                200,
+                "text/html",
+                b'<a href="/sobre">Sobre</a><a href="/produtos">Produtos</a>'
+                b'<a href="/carreiras">Carreiras</a>',
+            ),
+            FetchResult(
+                "https://example.com/sobre",
+                200,
+                "text/html",
+                b"<h1>Sobre a empresa</h1>",
+            ),
+            FetchResult(
+                "https://example.com/produtos",
+                200,
+                "text/html",
+                b"<h1>Solucoes industriais</h1>",
+            ),
+        ]
+
+        outcome = crawl_company_website(self.company)
+
+        self.assertEqual(outcome.pages_attempted, 3)
+        self.assertEqual(len(outcome.pages), 3)
+        self.assertEqual(WebsitePage.objects.filter(current=True).count(), 3)
+        self.assertFalse(
+            WebsitePage.objects.filter(url="https://example.com/carreiras").exists()
+        )

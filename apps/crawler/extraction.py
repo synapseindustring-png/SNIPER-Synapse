@@ -1,6 +1,14 @@
 from html.parser import HTMLParser
+from dataclasses import dataclass
 
 from django.conf import settings
+
+
+@dataclass(frozen=True, slots=True)
+class ExtractedDocument:
+    title: str
+    text: str
+    links: tuple[str, ...]
 
 
 class _TextExtractor(HTMLParser):
@@ -12,6 +20,7 @@ class _TextExtractor(HTMLParser):
         self.in_title = False
         self.title_parts = []
         self.text_parts = []
+        self.links = []
 
     def handle_starttag(self, tag, attrs):
         tag = tag.lower()
@@ -19,6 +28,10 @@ class _TextExtractor(HTMLParser):
             self.ignored_depth += 1
         if tag == "title" and not self.ignored_depth:
             self.in_title = True
+        if tag == "a" and not self.ignored_depth:
+            href = next((value for key, value in attrs if key.lower() == "href"), None)
+            if href and len(href) <= 2000:
+                self.links.append(href)
 
     def handle_endtag(self, tag):
         tag = tag.lower()
@@ -39,6 +52,11 @@ class _TextExtractor(HTMLParser):
 
 
 def extract_html_text(body: bytes, content_type_header: str = "") -> tuple[str, str]:
+    document = extract_html_document(body, content_type_header)
+    return document.title, document.text
+
+
+def extract_html_document(body: bytes, content_type_header: str = "") -> ExtractedDocument:
     charset = "utf-8"
     if "charset=" in content_type_header.lower():
         charset = content_type_header.lower().split("charset=", 1)[1].split(";", 1)[0].strip()
@@ -50,4 +68,4 @@ def extract_html_text(body: bytes, content_type_header: str = "") -> tuple[str, 
     parser.feed(html)
     title = " ".join(parser.title_parts)[:500]
     text = "\n".join(parser.text_parts)[: settings.CRAWLER_MAX_TEXT_CHARS]
-    return title, text
+    return ExtractedDocument(title=title, text=text, links=tuple(dict.fromkeys(parser.links)))

@@ -58,6 +58,7 @@ CRAWLER_TIMEOUT_SECONDS
 CRAWLER_MAX_BYTES
 CRAWLER_MAX_TEXT_CHARS
 CRAWLER_MAX_REDIRECTS
+CRAWLER_MAX_PAGES
 MAPS_BASE_URL
 MAPS_CONCURRENCY
 ```
@@ -136,6 +137,10 @@ O uso persistente esperado do Sniper é proporcional às empresas efetivamente e
 Processamento CNPJ exige espaço temporário por arquivo/parte. O worker verificará espaço livre e quota antes de baixar. Se não houver margem configurada, o job falha de forma segura antes do download.
 
 CPU/RAM do Maps serão medidos com uma única página/browser e baixa concorrência antes de qualquer aumento.
+
+O crawler processa páginas sequencialmente e limita cada execução por
+`CRAWLER_MAX_PAGES` (padrão 5). Como cada resposta e o texto extraído também possuem teto,
+uma coleta não cresce proporcionalmente ao tamanho total do website.
 
 ## Observação sobre Git
 

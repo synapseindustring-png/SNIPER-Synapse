@@ -142,13 +142,13 @@ def execute_job(job: Job) -> None:
         from apps.signals.detector import detect_company_signals
 
         company = Company.objects.get(pk=job.payload["company_id"])
-        crawl_company_website(company)
+        outcome = crawl_company_website(company)
         stats = detect_company_signals(company)
         enqueue_company_score(company)
         Job.objects.filter(pk=job.pk).update(
-            records_processed=1,
-            records_success=1,
-            records_failed=0,
+            records_processed=outcome.pages_attempted,
+            records_success=len(outcome.pages),
+            records_failed=outcome.pages_failed,
         )
         return
     raise NotImplementedError(f"Handler not implemented for job type {job.type}")
