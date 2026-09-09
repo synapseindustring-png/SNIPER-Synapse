@@ -185,6 +185,12 @@ oferecidos ao detector pelos campos `job_title` e `job_description`; nenhum link
 visitado automaticamente. O detector gera uma evidência por vaga e regra, usando a data de
 publicação para decay e a validade/idade máxima para expiração.
 
+O primeiro JobsAdapter executável usa somente fixtures JSON locais e implementa o mesmo
+contrato previsto para fontes futuras. Limites configurados são tetos: um job pode reduzi-los,
+mas não ampliá-los. `PREVIEW` não cria `SourceRecord`, vaga ou revisão. `FULL` persiste apenas
+correspondências fortes; coleta truncada nunca desativa vagas ausentes, pois a ausência não é
+conclusiva. O registro da fonte e um kill switch global começam desabilitados.
+
 ## Observabilidade
 
 - logs JSON com `request_id`, `query_run_id`, `job_id`, `source` e `company_id`;

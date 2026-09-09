@@ -106,6 +106,11 @@ def execute_job(job: Job) -> None:
         dataset = sync_latest_manifest()
         Job.objects.filter(pk=job.pk).update(records_processed=dataset.files.count())
         return
+    if job.type == Job.Type.FIND_JOBS:
+        from apps.sources.jobs.jobs import execute_find_jobs
+
+        execute_find_jobs(job)
+        return
     if job.type == Job.Type.CALCULATE_SCORE:
         from django.utils.dateparse import parse_datetime
 

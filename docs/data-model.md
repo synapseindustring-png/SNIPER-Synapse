@@ -165,6 +165,13 @@ desapareceram da mesma página-fonte, excederam a idade máxima ou passaram de `
 Cada sinal originado de vaga guarda seu ID/fingerprint nos metadados e usa `published_on`
 como data observada, permitindo decay e rastreabilidade por vaga.
 
+### `job_posting_review`
+
+Fila implementada para candidatos de fontes de vagas que não possuem correspondência forte
+com a empresa consultada. Guarda fonte, fingerprint, identidade declarada, cargo, local,
+URL sanitizada, motivo, empresa sugerida, estado da revisão e datas. O payload integral e a
+descrição da vaga não são replicados nessa fila.
+
 ## Sinais
 
 ### `signal`

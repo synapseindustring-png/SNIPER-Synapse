@@ -174,7 +174,9 @@ Status: iniciada. Páginas prioritárias já são coletadas e vagas em JSON-LD `
 são normalizadas, deduplicadas, desativadas quando removidas/expiradas e integradas ao
 detector local como evidências individuais. Decay usa a data de publicação; regras cobrem
 PCM, manutenção, produção, processos, melhoria contínua e automação. Adapters externos de
-vagas e as políticas específicas de revisão/backoff permanecem pendentes.
+vagas permanecem pendentes. O contrato substituível, fixture local, preview sem escrita,
+limites, kill switch, handler `FIND_JOBS`, deduplicação cross-source e fila de revisão já
+estão implementados; o worker fornece tentativas e backoff.
 
 ### Entregáveis
 

@@ -46,6 +46,12 @@ deduplicadas e exibidas no detalhe da empresa. Essa etapa não faz novas requisi
 vagas estruturadas alimentam o detector de sinais e o scoring. Cada vaga preserva sua
 própria URL e data de publicação para evidência e decay, e expira após o limite configurado.
 
+A infraestrutura inicial do JobsAdapter também está disponível com fixture JSON local,
+modo `PREVIEW` sem escrita, limites rígidos de páginas/resultados/bytes e kill switch
+desligado por padrão. O modo `FULL` aceita somente vínculos fortes por CNPJ, domínio ou nome
+exato único; candidatos divergentes seguem para revisão administrativa. Nenhuma plataforma
+externa está habilitada nesta versão.
+
 Decisões centrais:
 
 - descoberta iniciada por consultas, sem upload manual de listas;

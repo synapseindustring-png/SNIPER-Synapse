@@ -227,6 +227,15 @@ def persist_job_postings(
             separators=(",", ":"),
         )
         fingerprint = hashlib.sha256(identity.encode("utf-8")).hexdigest()
+        if published_on and location:
+            equivalent = JobPosting.objects.filter(
+                company=company,
+                title__iexact=title,
+                location__iexact=location,
+                published_on=published_on,
+            ).first()
+            if equivalent:
+                fingerprint = equivalent.fingerprint
         seen_fingerprints.add(fingerprint)
         job_defaults = {
             "source_record": source_record,

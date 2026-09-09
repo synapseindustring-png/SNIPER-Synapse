@@ -147,6 +147,17 @@ objetos estruturados e 100 vagas são considerados; o HTML bruto continua sendo 
 `validThrough` anterior também a desativa; a próxima detecção desativa seus sinais e agenda
 o scoring pelo fluxo normal do job de coleta/detecção.
 
+O JobsAdapter começa desligado. Para testes controlados com fixtures locais, configure
+`JOBS_ADAPTER_ENABLED=true`, habilite a fonte `jobs-fixture` no admin e coloque o JSON
+diretamente em `JOBS_FIXTURE_ROOT`. Subdiretórios e traversal são rejeitados. Os tetos são:
+
+- `JOBS_MAX_PAGES` (padrão 2);
+- `JOBS_MAX_RESULTS` (padrão 100);
+- `JOBS_MAX_RESPONSE_BYTES` (padrão 1 MB).
+
+Somente o adapter local está permitido no handler `FIND_JOBS`; apontar outro `source_key`
+falha de forma segura. O worker aplica sua política normal de tentativas/backoff às falhas.
+
 ## Observação sobre Git
 
 O repositório oficial é `synapseindustring-png/SNIPER-Synapse`. Tokens continuam somente

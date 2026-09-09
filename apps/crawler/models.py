@@ -85,3 +85,49 @@ class JobPosting(models.Model):
 
     def __str__(self):
         return f"{self.company} · {self.title}"
+
+
+class JobPostingReview(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pendente"
+        MATCHED = "MATCHED", "Vinculada"
+        DISMISSED = "DISMISSED", "Descartada"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    source = models.ForeignKey(
+        "sources.Source", on_delete=models.PROTECT, related_name="job_posting_reviews"
+    )
+    candidate_fingerprint = models.CharField(max_length=64)
+    external_id = models.CharField(max_length=500, blank=True)
+    company_name = models.CharField(max_length=500, blank=True)
+    company_domain = models.CharField(max_length=255, blank=True)
+    title = models.CharField(max_length=500)
+    location = models.CharField(max_length=500, blank=True)
+    url = models.URLField(max_length=1000, blank=True)
+    reason = models.CharField(max_length=500)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    suggested_company = models.ForeignKey(
+        "companies.Company",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="job_posting_reviews",
+    )
+    metadata = models.JSONField(default=dict, blank=True)
+    first_seen_at = models.DateTimeField()
+    last_seen_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ("status", "-last_seen_at")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("source", "candidate_fingerprint"),
+                name="unique_source_job_review_candidate",
+            )
+        ]
+        indexes = [
+            models.Index(fields=("status", "last_seen_at"), name="job_review_status_idx")
+        ]
+
+    def __str__(self):
+        return f"{self.title} · {self.company_name or 'empresa não identificada'}"

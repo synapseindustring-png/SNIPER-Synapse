@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import JobPosting, WebsitePage
+from .models import JobPosting, JobPostingReview, WebsitePage
 
 
 @admin.register(WebsitePage)
@@ -17,3 +17,25 @@ class JobPostingAdmin(admin.ModelAdmin):
     list_filter = ("active", "employment_type", "published_on")
     search_fields = ("company__cnpj", "company__legal_name", "title", "location", "description")
     readonly_fields = ("id", "source_record", "fingerprint", "first_seen_at", "last_seen_at")
+
+
+@admin.register(JobPostingReview)
+class JobPostingReviewAdmin(admin.ModelAdmin):
+    list_display = ("title", "company_name", "source", "status", "suggested_company", "last_seen_at")
+    list_filter = ("status", "source")
+    search_fields = ("title", "company_name", "company_domain", "external_id")
+    readonly_fields = (
+        "id",
+        "source",
+        "candidate_fingerprint",
+        "external_id",
+        "company_name",
+        "company_domain",
+        "title",
+        "location",
+        "url",
+        "reason",
+        "metadata",
+        "first_seen_at",
+        "last_seen_at",
+    )

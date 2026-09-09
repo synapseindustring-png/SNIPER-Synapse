@@ -22,10 +22,17 @@ CRAWLER_MAX_TEXT_CHARS = int(os.getenv("CRAWLER_MAX_TEXT_CHARS", "200000"))
 CRAWLER_MAX_REDIRECTS = int(os.getenv("CRAWLER_MAX_REDIRECTS", "3"))
 CRAWLER_MAX_PAGES = int(os.getenv("CRAWLER_MAX_PAGES", "5"))
 JOB_POSTING_MAX_AGE_DAYS = int(os.getenv("JOB_POSTING_MAX_AGE_DAYS", "365"))
+JOBS_FIXTURE_ROOT = Path(os.getenv("JOBS_FIXTURE_ROOT", str(BASE_DIR / "fixtures" / "jobs")))
+JOBS_MAX_PAGES = int(os.getenv("JOBS_MAX_PAGES", "2"))
+JOBS_MAX_RESULTS = int(os.getenv("JOBS_MAX_RESULTS", "100"))
+JOBS_MAX_RESPONSE_BYTES = int(os.getenv("JOBS_MAX_RESPONSE_BYTES", "1000000"))
 
 
 def env_bool(name: str, default: bool = False) -> bool:
     return os.getenv(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}
+
+
+JOBS_ADAPTER_ENABLED = env_bool("JOBS_ADAPTER_ENABLED", False)
 
 
 def env_list(name: str, default: str = "") -> list[str]:
