@@ -104,6 +104,8 @@ code { font-size: 11px; color: var(--muted); white-space: normal; }
 .filter-form { display: grid; grid-template-columns: minmax(220px, 2fr) 80px minmax(160px, 1fr) minmax(160px, 1fr) auto auto; gap: 12px; align-items: end; min-height: 0; }
 .filter-form .field { margin: 0; }
 .filter-form input, .filter-form select { width: 100%; border: 1px solid #cfd8d2; border-radius: 8px; padding: 10px; background: white; }
+.ranking-filter { grid-template-columns: repeat(4, minmax(150px, 1fr)); }
+.ranking-filter .filter-actions { display: flex; align-items: end; gap: 10px; }
 .pagination { display: flex; justify-content: center; align-items: center; gap: 16px; padding-top: 18px; }
 .pagination span { color: var(--muted); font-size: 13px; }
 .record-list { list-style: none; padding: 8px 0 0; margin: 0; }
@@ -145,6 +147,7 @@ code { font-size: 11px; color: var(--muted); white-space: normal; }
   .panel-grid { grid-template-columns: 1fr; }
   .detail-grid { grid-template-columns: 1fr; }
   .filter-form { grid-template-columns: 1fr 1fr; }
+  .ranking-filter { grid-template-columns: 1fr 1fr; }
   .score-summary { grid-template-columns: 1fr 1fr; }
   .dimension-grid { grid-template-columns: repeat(3, 1fr); }
 }
@@ -155,5 +158,6 @@ code { font-size: 11px; color: var(--muted); white-space: normal; }
   .metric-grid { grid-template-columns: 1fr; }
   .notice { align-items: flex-start; flex-direction: column; }
   .filter-form { grid-template-columns: 1fr; }
+  .ranking-filter { grid-template-columns: 1fr; }
   .score-summary, .dimension-grid { grid-template-columns: 1fr 1fr; }
 }

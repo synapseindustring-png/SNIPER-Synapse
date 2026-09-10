@@ -1,13 +1,18 @@
+import csv
+
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import OuterRef, Prefetch, Q, Subquery
+from django.db.models import CharField, DecimalField, Exists, F, OuterRef, Prefetch, Q, Subquery
+from django.db.models.functions import Coalesce
+from django.http import HttpResponseBadRequest, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.jobs.models import Job
 from apps.crawler.services import WebsiteFetchError, enqueue_website_crawl
-from apps.scoring.models import ScoreContribution, ScoreSnapshot
+from apps.scoring.models import ScoreContribution, ScoreOverride, ScoreSnapshot
 from apps.scoring.services import enqueue_company_score
 from apps.signals.services import enqueue_signal_detection
 from apps.sources.models import FieldObservation, SourceRecord
@@ -16,11 +21,11 @@ from .forms import CompanyFilterForm
 from .models import Company, CompanyCnae
 
 
-@login_required
-def company_list(request):
+def _company_ranking(parameters):
     latest_score = ScoreSnapshot.objects.filter(company=OuterRef("pk")).order_by(
         "-as_of", "-created_at"
     )
+    active_override = ScoreOverride.objects.filter(company=OuterRef("pk"), active=True)
     companies = Company.objects.filter(
         company_type=Company.Type.INDUSTRY,
         deleted_at__isnull=True,
@@ -29,10 +34,24 @@ def company_list(request):
         latest_classification=Subquery(
             latest_score.values("calculated_classification")[:1]
         ),
+        latest_best_product=Subquery(latest_score.values("best_product")[:1]),
+        latest_score_at=Subquery(latest_score.values("as_of")[:1]),
+        override_priority=Subquery(active_override.values("priority")[:1]),
+        override_classification=Subquery(
+            active_override.exclude(classification="").values("classification")[:1]
+        ),
+        has_override=Exists(active_override),
+    ).annotate(
+        effective_priority=Coalesce(
+            "override_priority", "latest_priority", output_field=DecimalField()
+        ),
+        effective_classification=Coalesce(
+            "override_classification", "latest_classification", output_field=CharField()
+        ),
     ).prefetch_related(
         Prefetch("cnaes", queryset=CompanyCnae.objects.filter(is_primary=True), to_attr="primary_cnaes")
     )
-    form = CompanyFilterForm(request.GET)
+    form = CompanyFilterForm(parameters)
     if form.is_valid():
         filters = form.cleaned_data
         if filters["q"]:
@@ -49,7 +68,44 @@ def company_list(request):
             companies = companies.filter(registration_status=filters["registration_status"])
         if filters["commercial_status"]:
             companies = companies.filter(commercial_status=filters["commercial_status"])
+        if filters["classification"]:
+            companies = companies.filter(
+                effective_classification=filters["classification"]
+            )
+        if filters["best_product"]:
+            companies = companies.filter(latest_best_product=filters["best_product"])
+        if filters["minimum_priority"] is not None:
+            companies = companies.filter(effective_priority__gte=filters["minimum_priority"])
+        if filters["scored_since"]:
+            companies = companies.filter(latest_score_at__date__gte=filters["scored_since"])
+        if filters["signal_type"]:
+            now = timezone.now()
+            companies = companies.filter(
+                Q(signals__signal_type=filters["signal_type"])
+                & Q(signals__active=True)
+                & (Q(signals__expires_at__isnull=True) | Q(signals__expires_at__gt=now))
+            ).distinct()
 
+        ordering = {
+            "priority_asc": (F("effective_priority").asc(nulls_last=True), "trade_name", "legal_name"),
+            "score_recent": (F("latest_score_at").desc(nulls_last=True), F("effective_priority").desc(nulls_last=True)),
+            "company_name": ("trade_name", "legal_name", "cnpj"),
+        }.get(
+            filters["ordering"],
+            (F("effective_priority").desc(nulls_last=True), F("latest_score_at").desc(nulls_last=True), "trade_name", "legal_name"),
+        )
+        companies = companies.order_by(*ordering)
+    else:
+        companies = companies.order_by(
+            F("effective_priority").desc(nulls_last=True), "trade_name", "legal_name"
+        )
+
+    return companies, form
+
+
+@login_required
+def company_list(request):
+    companies, form = _company_ranking(request.GET)
     paginator = Paginator(companies, 50)
     page = paginator.get_page(request.GET.get("page"))
     query_params = request.GET.copy()
@@ -59,6 +115,62 @@ def company_list(request):
         "companies/company_list.html",
         {"form": form, "page": page, "querystring": query_params.urlencode()},
     )
+
+
+class _CsvEcho:
+    def write(self, value):
+        return value
+
+
+def _csv_safe(value):
+    value = "" if value is None else str(value)
+    return f"'{value}" if value.lstrip().startswith(("=", "+", "-", "@")) else value
+
+
+@login_required
+def company_export(request):
+    parameters = request.GET.copy()
+    parameters.pop("page", None)
+    companies, form = _company_ranking(parameters)
+    if not form.is_valid():
+        return HttpResponseBadRequest("Filtros inválidos para exportação.")
+    writer = csv.writer(_CsvEcho())
+
+    def rows():
+        yield "\ufeff" + writer.writerow(
+            (
+                "posição",
+                "cnpj",
+                "empresa",
+                "município",
+                "uf",
+                "prioridade",
+                "classificação",
+                "produto",
+                "score_em",
+                "etapa_comercial",
+            )
+        )
+        for position, company in enumerate(companies[:500].iterator(chunk_size=100), 1):
+            yield writer.writerow(
+                (
+                    position,
+                    _csv_safe(company.cnpj),
+                    _csv_safe(str(company)),
+                    _csv_safe(company.municipality),
+                    _csv_safe(company.state),
+                    company.effective_priority if company.effective_priority is not None else "",
+                    _csv_safe(company.effective_classification),
+                    _csv_safe(company.latest_best_product),
+                    company.latest_score_at.isoformat() if company.latest_score_at else "",
+                    company.commercial_status,
+                )
+            )
+
+    response = StreamingHttpResponse(rows(), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="ranking-industrias.csv"'
+    response["X-Export-Limit"] = "500"
+    return response
 
 
 @login_required

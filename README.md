@@ -56,6 +56,11 @@ Usuários staff possuem uma fila própria de revisões. A aprovação exige empr
 justificativa, registra responsável/data, cria a vaga e agenda detecção e scoring. O descarte
 também exige motivo. Recoletas posteriores preservam decisões humanas já tomadas.
 
+A lista de indústrias funciona como ranking comercial local: prioridade efetiva (incluindo
+override), classificação, produto, sinal ativo e recência podem ser filtrados e ordenados.
+A exportação respeita o mesmo ranking, transmite no máximo 500 linhas sem arquivo temporário
+e neutraliza fórmulas em células de planilha.
+
 Decisões centrais:
 
 - descoberta iniciada por consultas, sem upload manual de listas;

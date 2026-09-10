@@ -196,6 +196,11 @@ Aprovação e descarte exigem justificativa e são transacionais. A aprovação 
 CNPJ ou nome exato único, persiste a vaga e enfileira a detecção; decisões resolvidas são
 imutáveis para o fluxo de coleta e somente leitura no admin.
 
+O ranking de indústrias é calculado por subqueries sobre o snapshot mais recente e o override
+ativo, sem materializar cópias. Sinais expirados não atendem ao filtro. A exportação reutiliza
+os mesmos filtros/ordenação, limita a consulta a 500 linhas, transmite CSV diretamente e
+escapa prefixos interpretáveis como fórmulas por planilhas.
+
 ## Observabilidade
 
 - logs JSON com `request_id`, `query_run_id`, `job_id`, `source` e `company_id`;

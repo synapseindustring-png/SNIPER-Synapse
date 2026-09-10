@@ -196,6 +196,11 @@ aprovação/descarte transacionais, justificativa e auditoria, e a aprovação a
 
 ## Fase 7 — produto operacional
 
+Status: iniciada. O ranking de indústrias possui prioridade efetiva, filtros de score,
+classificação, produto, sinal e recência, ordenação e CSV limitado. O detalhe, dashboard e
+revisões de vagas já estão operacionais; ranking de parceiros, painel completo de jobs/fontes
+e gestão visual de regras permanecem pendentes.
+
 ### Entregáveis
 
 - Dashboard;

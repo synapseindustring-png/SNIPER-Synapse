@@ -158,6 +158,9 @@ diretamente em `JOBS_FIXTURE_ROOT`. Subdiretórios e traversal são rejeitados. 
 Somente o adapter local está permitido no handler `FIND_JOBS`; apontar outro `source_key`
 falha de forma segura. O worker aplica sua política normal de tentativas/backoff às falhas.
 
+A exportação do ranking não grava arquivos no servidor e possui teto fixo de 500 empresas.
+Filtros inválidos retornam HTTP 400; nenhuma exportação inicia adapter, job ou download.
+
 ## Observação sobre Git
 
 O repositório oficial é `synapseindustring-png/SNIPER-Synapse`. Tokens continuam somente
