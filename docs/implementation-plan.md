@@ -198,8 +198,9 @@ aprovação/descarte transacionais, justificativa e auditoria, e a aprovação a
 
 Status: iniciada. O ranking de indústrias possui prioridade efetiva, filtros de score,
 classificação, produto, sinal e recência, ordenação e CSV limitado. O detalhe, dashboard e
-revisões de vagas já estão operacionais; ranking de parceiros, painel completo de jobs/fontes
-e gestão visual de regras permanecem pendentes.
+revisões de vagas já estão operacionais. O painel staff de jobs/fontes cobre fila, tentativas,
+falhas sanitizadas, atividade das fontes e capacidade de disco; ranking de parceiros, ações
+operacionais auditadas e gestão visual de regras permanecem pendentes.
 
 ### Entregáveis
 

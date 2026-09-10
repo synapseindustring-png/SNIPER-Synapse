@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Job {{ job.pk }} · Synapse Sniper{% endblock %}
+{% block heading %}Detalhe do job{% endblock %}
+
+{% block content %}
+<div class="page-actions"><div><p class="eyebrow">{{ job.get_type_display }}</p><h2 class="page-title">{{ job.pk }}</h2></div><a class="button secondary" href="{% url 'job-list' %}">Voltar aos jobs</a></div>
+<div class="detail-grid">
+  <article class="panel compact"><div class="panel-head"><h2>Execução</h2><span class="status status-{{ job.status|lower }}">{{ job.get_status_display }}</span></div><dl class="facts">
+    <div><dt>Prioridade</dt><dd>{{ job.priority }}</dd></div><div><dt>Tentativas</dt><dd>{{ job.attempt_count }}/{{ job.max_attempts }}</dd></div><div><dt>Processados</dt><dd>{{ job.records_processed }}</dd></div><div><dt>Sucessos</dt><dd>{{ job.records_success }}</dd></div><div><dt>Falhas</dt><dd>{{ job.records_failed }}</dd></div><div><dt>Criado</dt><dd>{{ job.created_at|date:"d/m/Y H:i:s" }}</dd></div><div><dt>Iniciado</dt><dd>{{ job.started_at|date:"d/m/Y H:i:s"|default:"—" }}</dd></div><div><dt>Finalizado</dt><dd>{{ job.finished_at|date:"d/m/Y H:i:s"|default:"—" }}</dd></div>
+  </dl></article>
+  <article class="panel compact"><div class="panel-head"><h2>Payload sanitizado</h2><span>Segredos e query strings ocultos</span></div><pre class="data-block">{{ safe_payload }}</pre>{% if safe_error_summary %}<div class="form-error">{{ safe_error_summary }}</div>{% endif %}</article>
+</div>
+<article class="panel table-panel"><div class="panel-head"><h2>Tentativas</h2><span>{{ job.attempts.all|length }}</span></div>
+  {% if job.attempts.all %}<table><thead><tr><th>#</th><th>Worker</th><th>Início</th><th>Fim</th><th>Resultado</th><th>Métricas/erro</th></tr></thead><tbody>{% for attempt in job.attempts.all %}<tr><td>{{ attempt.attempt_number }}</td><td>{{ attempt.worker_id }}</td><td>{{ attempt.started_at|date:"d/m/Y H:i:s" }}</td><td>{{ attempt.finished_at|date:"d/m/Y H:i:s"|default:"—" }}</td><td>{% if attempt.succeeded is True %}Sucesso{% elif attempt.succeeded is False %}Falha{% else %}Em execução{% endif %}</td><td><code>{% if attempt.safe_metrics %}{{ attempt.safe_metrics }}{% endif %}{% if attempt.safe_error_detail %}{{ attempt.safe_error_detail|truncatechars:1000 }}{% endif %}</code></td></tr>{% endfor %}</tbody></table>{% else %}<div class="empty-state small">O job ainda não possui tentativas.</div>{% endif %}
+</article>
+{% endblock %}

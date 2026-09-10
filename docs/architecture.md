@@ -196,6 +196,14 @@ Aprovação e descarte exigem justificativa e são transacionais. A aprovação 
 CNPJ ou nome exato único, persiste a vaga e enfileira a detecção; decisões resolvidas são
 imutáveis para o fluxo de coleta e somente leitura no admin.
 
+## Painel operacional
+
+O painel de jobs/fontes é restrito a staff e somente leitura. Lista jobs paginados e
+filtráveis, tentativas, contadores, métricas e erros; fontes mostram configuração, estado e
+última atividade local. Chaves sensíveis, parâmetros de URLs e padrões de credenciais são
+ocultados antes da renderização. Capacidade de disco é consultada no ancestral existente de
+`TEMP_DATA_DIR`, sem criar diretórios ou percorrer arquivos.
+
 O ranking de indústrias é calculado por subqueries sobre o snapshot mais recente e o override
 ativo, sem materializar cópias. Sinais expirados não atendem ao filtro. A exportação reutiliza
 os mesmos filtros/ordenação, limita a consulta a 500 linhas, transmite CSV diretamente e

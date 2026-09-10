@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Jobs e fontes · Synapse Sniper{% endblock %}
+{% block heading %}Jobs e fontes{% endblock %}
+
+{% block content %}
+<div class="page-actions"><p>Visão operacional somente leitura. Esta tela não inicia nem altera coletas.</p><span class="status-pill">50 jobs por página</span></div>
+
+<div class="metric-grid" aria-label="Estados da fila">
+  <article><span>Pendentes</span><strong>{{ status_counts.PENDING|default:0 }}</strong><small>Aguardando worker</small></article>
+  <article><span>Executando</span><strong>{{ status_counts.RUNNING|default:0 }}</strong><small>Com lock ativo</small></article>
+  <article><span>Retries</span><strong>{{ status_counts.RETRY_SCHEDULED|default:0 }}</strong><small>Backoff agendado</small></article>
+  <article><span>Falhas</span><strong>{{ status_counts.FAILED|default:0 }}</strong><small>Tentativas esgotadas</small></article>
+</div>
+
+<article class="panel compact storage-panel">
+  <div class="panel-head"><h2>Capacidade de armazenamento</h2><span>{{ storage.path }}</span></div>
+  <div class="score-summary">
+    <div><span>Espaço livre</span><strong>{{ storage.free_bytes|filesizeformat }}</strong></div>
+    <div><span>Reserva mínima</span><strong>{{ storage.cnpj_min_free_bytes|filesizeformat }}</strong></div>
+    <div><span>Capacidade CNPJ segura agora</span><strong>{{ storage.safe_cnpj_capacity_bytes|filesizeformat }}</strong></div>
+    <div><span>Resposta máxima de vagas</span><strong>{{ storage.jobs_max_response_bytes|filesizeformat }}</strong></div>
+  </div>
+</article>
+
+<form method="get" class="panel filter-form operations-filter">
+  {% for field in form %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.errors %}<div class="field-error">{{ field.errors }}</div>{% endif %}</div>{% endfor %}
+  <div class="filter-actions"><button class="button" type="submit">Filtrar jobs</button><a class="button secondary" href="{% url 'job-list' %}">Limpar</a></div>
+</form>
+
+<article class="panel table-panel">
+  <div class="panel-head"><h2>Histórico de jobs</h2><span>{{ page.paginator.count }} registro{{ page.paginator.count|pluralize }}</span></div>
+  {% if page.object_list %}<table><thead><tr><th>Job</th><th>Tipo</th><th>Status</th><th>Tentativas</th><th>Registros</th><th>Criado</th></tr></thead><tbody>
+    {% for job in page.object_list %}<tr><td><a class="table-link" href="{% url 'job-detail' job.pk %}">{{ job.pk }}</a></td><td>{{ job.get_type_display }}</td><td><span class="status status-{{ job.status|lower }}">{{ job.get_status_display }}</span></td><td>{{ job.attempt_count }}/{{ job.max_attempts }}</td><td>{{ job.records_success }}/{{ job.records_processed }}{% if job.records_failed %} · {{ job.records_failed }} falhas{% endif %}</td><td>{{ job.created_at|date:"d/m/Y H:i" }}</td></tr>{% endfor %}
+  </tbody></table>{% else %}<div class="empty-state small">Nenhum job corresponde aos filtros.</div>{% endif %}
+  {% if page.has_other_pages %}<nav class="pagination" aria-label="Paginação">{% if page.has_previous %}<a class="button secondary" href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ page.number }} de {{ page.paginator.num_pages }}</span>{% if page.has_next %}<a class="button secondary" href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.next_page_number }}">Próxima</a>{% endif %}</nav>{% endif %}
+</article>
+
+<article class="panel table-panel">
+  <div class="panel-head"><h2>Fontes</h2><span>Configuração e atividade local</span></div>
+  <table><thead><tr><th>Fonte</th><th>Estado</th><th>Adapter</th><th>Registros</th><th>Última coleta</th><th>Limites</th></tr></thead><tbody>
+    {% for source in sources %}<tr><td><strong>{{ source.name }}</strong><br><small>{{ source.key }}</small></td><td>{% if source.enabled %}<span class="status status-succeeded">Habilitada</span>{% else %}<span class="status">Desligada</span>{% endif %}</td><td><code>{{ source.adapter_path|default:"Interno" }}</code></td><td>{{ source.record_count }}</td><td>{{ source.last_record_at|date:"d/m/Y H:i"|default:"—" }}</td><td><code>{{ source.rate_limit|default:"—" }}</code></td></tr>{% endfor %}
+  </tbody></table>
+</article>
+{% endblock %}

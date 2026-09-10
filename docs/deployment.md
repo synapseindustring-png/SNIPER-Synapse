@@ -158,6 +158,11 @@ diretamente em `JOBS_FIXTURE_ROOT`. Subdiretórios e traversal são rejeitados. 
 Somente o adapter local está permitido no handler `FIND_JOBS`; apontar outro `source_key`
 falha de forma segura. O worker aplica sua política normal de tentativas/backoff às falhas.
 
+Usuários staff podem acompanhar fila, fontes e capacidade em `/operations/jobs/`. A
+capacidade CNPJ segura exibida é o menor valor entre a quota temporária e o espaço livre após
+a reserva mínima. O painel não cria o diretório temporário, não calcula tamanho recursivo e
+não oferece ações de retry, cancelamento, limpeza ou habilitação de fonte.
+
 A exportação do ranking não grava arquivos no servidor e possui teto fixo de 500 empresas.
 Filtros inválidos retornam HTTP 400; nenhuma exportação inicia adapter, job ou download.
 

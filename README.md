@@ -56,6 +56,11 @@ Usuários staff possuem uma fila própria de revisões. A aprovação exige empr
 justificativa, registra responsável/data, cria a vaga e agenda detecção e scoring. O descarte
 também exige motivo. Recoletas posteriores preservam decisões humanas já tomadas.
 
+O painel staff de Jobs e fontes apresenta estados da fila, tentativas, métricas, falhas,
+fontes habilitadas e atividade local. Também compara espaço livre, quota temporária CNPJ,
+reserva mínima e limite de resposta de vagas. O painel é somente leitura e sanitiza payloads,
+URLs, erros e métricas antes de exibi-los.
+
 A lista de indústrias funciona como ranking comercial local: prioridade efetiva (incluindo
 override), classificação, produto, sinal ativo e recência podem ser filtrados e ordenados.
 A exportação respeita o mesmo ranking, transmite no máximo 500 linhas sem arquivo temporário

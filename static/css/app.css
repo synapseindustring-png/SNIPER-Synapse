@@ -125,6 +125,9 @@ code { font-size: 11px; color: var(--muted); white-space: normal; }
 .contribution-head h3 { margin: 0; font-size: 15px; }
 .review-form { margin-top: 18px; }
 .review-divider { border-top: 1px solid var(--line); margin: 24px 0; }
+.operations-filter { grid-template-columns: 2fr 1fr 1fr 1fr auto; margin-top: 16px; }
+.storage-panel { margin-top: 16px; }
+.data-block { max-height: 360px; overflow: auto; padding: 14px; border-radius: 8px; background: #f3f6f3; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .auth-page { display: grid; place-items: center; padding: 24px; background: var(--deep); }
 .auth-card { width: min(420px, 100%); background: var(--surface); padding: 34px; border-radius: 16px; box-shadow: 0 30px 80px rgba(0, 0, 0, .25); }
@@ -148,6 +151,7 @@ code { font-size: 11px; color: var(--muted); white-space: normal; }
   .detail-grid { grid-template-columns: 1fr; }
   .filter-form { grid-template-columns: 1fr 1fr; }
   .ranking-filter { grid-template-columns: 1fr 1fr; }
+  .operations-filter { grid-template-columns: 1fr 1fr; }
   .score-summary { grid-template-columns: 1fr 1fr; }
   .dimension-grid { grid-template-columns: repeat(3, 1fr); }
 }
@@ -159,5 +163,6 @@ code { font-size: 11px; color: var(--muted); white-space: normal; }
   .notice { align-items: flex-start; flex-direction: column; }
   .filter-form { grid-template-columns: 1fr; }
   .ranking-filter { grid-template-columns: 1fr; }
+  .operations-filter { grid-template-columns: 1fr; }
   .score-summary, .dimension-grid { grid-template-columns: 1fr 1fr; }
 }
