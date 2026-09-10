@@ -233,3 +233,31 @@ class JobsAdapterTests(TestCase):
         posting = JobPosting.objects.get()
         self.assertEqual(posting.source_record.source, self.source)
         self.assertEqual(posting.url, "https://jobs.example/vagas/1")
+
+    def test_recollection_does_not_overwrite_resolved_review(self):
+        with self.settings(JOBS_ADAPTER_ENABLED=True):
+            collect_company_jobs(
+                self.company,
+                source=self.source,
+                adapter=self.adapter(self.fixture_items()),
+                mode="FULL",
+                limits=self.limits(),
+            )
+            review = JobPostingReview.objects.get()
+            review.status = JobPostingReview.Status.DISMISSED
+            review.resolution_note = "Decisão humana preservada"
+            review.suggested_company = None
+            review.save(update_fields=("status", "resolution_note", "suggested_company"))
+
+            collect_company_jobs(
+                self.company,
+                source=self.source,
+                adapter=self.adapter(self.fixture_items()),
+                mode="FULL",
+                limits=self.limits(),
+            )
+
+        review.refresh_from_db()
+        self.assertEqual(review.status, JobPostingReview.Status.DISMISSED)
+        self.assertEqual(review.resolution_note, "Decisão humana preservada")
+        self.assertIsNone(review.suggested_company)

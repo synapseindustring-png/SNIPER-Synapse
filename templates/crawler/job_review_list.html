@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Revisões de vagas · Synapse Sniper{% endblock %}
+{% block heading %}Revisões de vagas{% endblock %}
+
+{% block content %}
+{% for message in messages %}<div class="flash {{ message.tags }}">{{ message }}</div>{% endfor %}
+<div class="page-actions">
+  <div><p>Somente candidatos sem correspondência forte chegam a esta fila.</p></div>
+  <div class="action-group">
+    <a class="button{% if status != 'PENDING' %} secondary{% endif %}" href="?status=PENDING">Pendentes</a>
+    <a class="button{% if status != 'MATCHED' %} secondary{% endif %}" href="?status=MATCHED">Vinculadas</a>
+    <a class="button{% if status != 'DISMISSED' %} secondary{% endif %}" href="?status=DISMISSED">Descartadas</a>
+  </div>
+</div>
+<article class="panel table-panel">
+  <div class="panel-head"><h2>Candidatos</h2><span>{{ page.paginator.count }} registro{{ page.paginator.count|pluralize }}</span></div>
+  {% if page.object_list %}
+  <table><thead><tr><th>Vaga</th><th>Empresa declarada</th><th>Motivo</th><th>Fonte</th><th>Última observação</th></tr></thead><tbody>
+    {% for review in page.object_list %}<tr><td><a class="table-link" href="{% url 'job-review-detail' review.pk %}">{{ review.title }}</a><br><small>{{ review.location|default:"—" }}</small></td><td>{{ review.company_name|default:"—" }}<br><small>{{ review.company_domain|default:"Sem domínio" }}</small></td><td>{{ review.reason }}</td><td>{{ review.source.name }}</td><td>{{ review.last_seen_at|date:"d/m/Y H:i" }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<div class="empty-state small">Nenhuma revisão neste estado.</div>{% endif %}
+  {% if page.has_other_pages %}<nav class="pagination" aria-label="Paginação">{% if page.has_previous %}<a class="button secondary" href="?status={{ status }}&page={{ page.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ page.number }} de {{ page.paginator.num_pages }}</span>{% if page.has_next %}<a class="button secondary" href="?status={{ status }}&page={{ page.next_page_number }}">Próxima</a>{% endif %}</nav>{% endif %}
+</article>
+{% endblock %}

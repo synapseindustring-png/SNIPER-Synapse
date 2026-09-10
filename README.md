@@ -52,6 +52,10 @@ desligado por padrão. O modo `FULL` aceita somente vínculos fortes por CNPJ, d
 exato único; candidatos divergentes seguem para revisão administrativa. Nenhuma plataforma
 externa está habilitada nesta versão.
 
+Usuários staff possuem uma fila própria de revisões. A aprovação exige empresa exata e
+justificativa, registra responsável/data, cria a vaga e agenda detecção e scoring. O descarte
+também exige motivo. Recoletas posteriores preservam decisões humanas já tomadas.
+
 Decisões centrais:
 
 - descoberta iniciada por consultas, sem upload manual de listas;

@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.db import models
 
 
@@ -103,7 +104,10 @@ class JobPostingReview(models.Model):
     company_domain = models.CharField(max_length=255, blank=True)
     title = models.CharField(max_length=500)
     location = models.CharField(max_length=500, blank=True)
+    employment_type = models.CharField(max_length=120, blank=True)
     url = models.URLField(max_length=1000, blank=True)
+    published_on = models.DateField(null=True, blank=True)
+    valid_through = models.DateField(null=True, blank=True)
     reason = models.CharField(max_length=500)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
     suggested_company = models.ForeignKey(
@@ -113,6 +117,22 @@ class JobPostingReview(models.Model):
         blank=True,
         related_name="job_posting_reviews",
     )
+    job_posting = models.ForeignKey(
+        JobPosting,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviews",
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="job_posting_reviews",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    resolution_note = models.TextField(blank=True)
     metadata = models.JSONField(default=dict, blank=True)
     first_seen_at = models.DateTimeField()
     last_seen_at = models.DateTimeField()

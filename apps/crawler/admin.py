@@ -21,21 +21,44 @@ class JobPostingAdmin(admin.ModelAdmin):
 
 @admin.register(JobPostingReview)
 class JobPostingReviewAdmin(admin.ModelAdmin):
-    list_display = ("title", "company_name", "source", "status", "suggested_company", "last_seen_at")
+    list_display = (
+        "title",
+        "company_name",
+        "source",
+        "status",
+        "suggested_company",
+        "reviewed_by",
+        "last_seen_at",
+    )
     list_filter = ("status", "source")
     search_fields = ("title", "company_name", "company_domain", "external_id")
     readonly_fields = (
         "id",
         "source",
         "candidate_fingerprint",
+        "status",
         "external_id",
         "company_name",
         "company_domain",
         "title",
         "location",
+        "employment_type",
         "url",
+        "published_on",
+        "valid_through",
         "reason",
+        "suggested_company",
         "metadata",
+        "job_posting",
+        "reviewed_by",
+        "reviewed_at",
+        "resolution_note",
         "first_seen_at",
         "last_seen_at",
     )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

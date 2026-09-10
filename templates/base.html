@@ -20,6 +20,7 @@
         <a{% if 'company' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'company-list' %}">Indústrias</a>
         <span>Parceiros</span>
         <span>Sinais</span>
+        {% if request.user.is_staff %}<a{% if 'job-review' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'job-review-list' %}">Revisões</a>{% endif %}
         <span>Regras</span>
         <span>Jobs</span>
       </nav>

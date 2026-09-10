@@ -191,6 +191,11 @@ mas não ampliá-los. `PREVIEW` não cria `SourceRecord`, vaga ou revisão. `FUL
 correspondências fortes; coleta truncada nunca desativa vagas ausentes, pois a ausência não é
 conclusiva. O registro da fonte e um kill switch global começam desabilitados.
 
+A resolução de candidatos é restrita a usuários staff e ocorre apenas por POST com CSRF.
+Aprovação e descarte exigem justificativa e são transacionais. A aprovação aceita UUID,
+CNPJ ou nome exato único, persiste a vaga e enfileira a detecção; decisões resolvidas são
+imutáveis para o fluxo de coleta e somente leitura no admin.
+
 ## Observabilidade
 
 - logs JSON com `request_id`, `query_run_id`, `job_id`, `source` e `company_id`;

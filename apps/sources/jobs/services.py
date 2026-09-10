@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 
 from apps.companies.models import Company
 from apps.crawler.models import JobPosting, JobPostingReview
@@ -62,6 +63,13 @@ def _bounded_metadata(value: dict) -> dict:
     return result
 
 
+def _safe_date(value: str):
+    try:
+        return parse_date(value) if value else None
+    except ValueError:
+        return None
+
+
 def _match_company(company: Company, item) -> tuple[bool, str]:
     if item.company_cnpj and company.cnpj:
         if _normalize_cnpj(item.company_cnpj) == _normalize_cnpj(company.cnpj):
@@ -109,22 +117,32 @@ def _review_candidate(source: Source, company: Company, item, reason: str, obser
         "company_domain": _normalize_domain(item.company_domain),
         "title": item.title,
         "location": item.location,
+        "employment_type": item.employment_type,
         "url": _safe_url(item.url),
+        "published_on": _safe_date(item.published_on),
+        "valid_through": _safe_date(item.valid_through),
         "reason": reason,
         "suggested_company": company,
         "metadata": _bounded_metadata(item.metadata),
         "last_seen_at": observed_at,
     }
-    _, created = JobPostingReview.objects.update_or_create(
+    review, created = JobPostingReview.objects.get_or_create(
         source=source,
         candidate_fingerprint=fingerprint,
-        defaults=defaults,
-        create_defaults={**defaults, "first_seen_at": observed_at},
+        defaults={**defaults, "first_seen_at": observed_at},
     )
+    if not created:
+        if review.status == JobPostingReview.Status.PENDING:
+            for field_name, value in defaults.items():
+                setattr(review, field_name, value)
+            review.save(update_fields=tuple(defaults))
+        else:
+            review.last_seen_at = observed_at
+            review.save(update_fields=("last_seen_at",))
     return created
 
 
-def _persist_item(source: Source, company: Company, item, observed_at) -> str:
+def persist_source_item(source: Source, company: Company, item, observed_at) -> str:
     source_url = _safe_url(item.url)
     external_id = item.external_id or _candidate_fingerprint(source, item)
     payload = {
@@ -209,7 +227,7 @@ def collect_company_jobs(
         if is_match:
             matched += 1
             if mode == "FULL":
-                fingerprint = _persist_item(source, company, item, observed_at)
+                fingerprint = persist_source_item(source, company, item, observed_at)
                 if fingerprint:
                     seen_fingerprints.add(fingerprint)
                     persisted += 1

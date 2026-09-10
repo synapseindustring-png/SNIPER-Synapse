@@ -176,7 +176,8 @@ detector local como evidências individuais. Decay usa a data de publicação; r
 PCM, manutenção, produção, processos, melhoria contínua e automação. Adapters externos de
 vagas permanecem pendentes. O contrato substituível, fixture local, preview sem escrita,
 limites, kill switch, handler `FIND_JOBS`, deduplicação cross-source e fila de revisão já
-estão implementados; o worker fornece tentativas e backoff.
+estão implementados; o worker fornece tentativas e backoff. A fila possui tela staff,
+aprovação/descarte transacionais, justificativa e auditoria, e a aprovação aciona o pipeline.
 
 ### Entregáveis
 

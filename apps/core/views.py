@@ -8,6 +8,7 @@ from django.shortcuts import render
 from django.utils import timezone
 
 from apps.companies.models import Company
+from apps.crawler.models import JobPostingReview
 from apps.discovery.models import DiscoveryQuery, QueryResult
 from apps.jobs.models import Job
 from apps.scoring.models import ScoreSnapshot
@@ -52,6 +53,9 @@ def dashboard(request):
         ).count(),
         "recent_results": recent_results,
         "active_jobs": active_jobs,
+        "pending_job_reviews": JobPostingReview.objects.filter(
+            status=JobPostingReview.Status.PENDING
+        ).count(),
         "last_job": Job.objects.order_by("-updated_at").first(),
         "current_dataset": CnpjDataset.objects.filter(is_current=True).select_related("source").first(),
     }

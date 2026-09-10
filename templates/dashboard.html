@@ -34,6 +34,7 @@
       <li><span>Fila</span><strong{% if not active_jobs %} class="healthy"{% endif %}>{{ active_jobs }} job{{ active_jobs|pluralize }} ativo{{ active_jobs|pluralize }}</strong></li>
       <li><span>Último job</span><strong>{% if last_job %}{{ last_job.get_status_display }}{% else %}Sem histórico{% endif %}</strong></li>
       <li><span>Fonte CNPJ</span><strong{% if current_dataset %} class="healthy"{% endif %}>{% if current_dataset %}{{ current_dataset.reference }} pronta{% else %}Sem manifesto{% endif %}</strong></li>
+      {% if request.user.is_staff %}<li><span>Revisões de vagas</span><strong{% if not pending_job_reviews %} class="healthy"{% endif %}><a class="table-link" href="{% url 'job-review-list' %}">{{ pending_job_reviews }} pendente{{ pending_job_reviews|pluralize }}</a></strong></li>{% endif %}
     </ul>
   </article>
 </div>

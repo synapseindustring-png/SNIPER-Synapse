@@ -170,7 +170,8 @@ como data observada, permitindo decay e rastreabilidade por vaga.
 Fila implementada para candidatos de fontes de vagas que não possuem correspondência forte
 com a empresa consultada. Guarda fonte, fingerprint, identidade declarada, cargo, local,
 URL sanitizada, motivo, empresa sugerida, estado da revisão e datas. O payload integral e a
-descrição da vaga não são replicados nessa fila.
+descrição da vaga não são replicados nessa fila. A resolução guarda vaga resultante,
+responsável, data e justificativa; registros resolvidos não são sobrescritos por recoletas.
 
 ## Sinais
 
