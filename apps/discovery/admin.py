@@ -19,4 +19,18 @@ class QueryRunAdmin(admin.ModelAdmin):
 
 
 admin.site.register(QueryResult)
-admin.site.register(SourceCoverage)
+
+
+@admin.register(SourceCoverage)
+class SourceCoverageAdmin(admin.ModelAdmin):
+    list_display = (
+        "source",
+        "dataset_reference",
+        "record_count",
+        "query_run",
+        "completed_at",
+        "expires_at",
+    )
+    list_filter = ("source", "dataset_reference")
+    search_fields = ("scope_hash",)
+    readonly_fields = tuple(field.name for field in SourceCoverage._meta.fields)

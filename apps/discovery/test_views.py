@@ -6,10 +6,12 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from apps.companies.models import Company
 from apps.jobs.models import Job
 from apps.sources.models import CnpjDataset, CnpjDatasetFile, Source
 
-from .models import DiscoveryQuery, QueryRun
+from .coverage import record_source_coverage
+from .models import DiscoveryQuery, QueryResult, QueryRun
 
 
 class DiscoveryViewsTests(TestCase):
@@ -142,3 +144,52 @@ class DiscoveryViewsTests(TestCase):
         self.assertContains(response, "Cobertura CNPJ")
         self.assertContains(response, "Candidatos no staging")
         self.assertContains(response, "300 linhas lidas em 2 arquivo(s)")
+
+    def test_preview_reuses_valid_exact_coverage_without_enqueuing_download(self):
+        query = self.create_query()
+        source = Source.objects.get(key="receita-cnpj")
+        CnpjDataset.objects.create(
+            source=source,
+            reference="2026-08",
+            status=CnpjDataset.Status.READY,
+            is_current=True,
+            discovered_at=timezone.now(),
+        )
+        company = Company.objects.create(
+            cnpj="11111111000191",
+            trade_name="ALIMENTOS MINAS",
+            company_type=Company.Type.INDUSTRY,
+            state="MG",
+        )
+        covered_run = QueryRun.objects.create(
+            query=query,
+            created_by=self.user,
+            status=QueryRun.Status.SUCCEEDED,
+            dataset_reference="2026-08",
+            records_matched=1,
+            started_at=timezone.now(),
+            finished_at=timezone.now(),
+        )
+        QueryResult.objects.create(
+            query_run=covered_run,
+            company=company,
+            source=source,
+            rank=1,
+        )
+        coverage = record_source_coverage(source=source, query_run=covered_run)
+
+        detail_response = self.client.get(reverse("query-detail", args=[query.pk]))
+
+        response = self.client.post(
+            reverse("query-run-preview", args=[query.pk]),
+            {"max_results": 50},
+        )
+
+        cached_run = query.runs.exclude(pk=covered_run.pk).get()
+        self.assertContains(detail_response, "nenhum download será realizado")
+        self.assertRedirects(response, reverse("query-run-detail", args=[cached_run.pk]))
+        self.assertEqual(cached_run.coverage["mode"], "CACHE")
+        self.assertEqual(cached_run.coverage["source_coverage_id"], coverage.pk)
+        self.assertEqual(cached_run.records_processed, 0)
+        self.assertEqual(cached_run.results.get().company, company)
+        self.assertFalse(Job.objects.filter(type=Job.Type.DISCOVER_CNPJ).exists())

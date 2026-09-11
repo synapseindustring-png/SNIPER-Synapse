@@ -5,6 +5,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from apps.discovery.coverage import record_source_coverage
 from apps.discovery.models import QueryRun
 from apps.jobs.models import Job
 from apps.sources.models import CnpjCandidate, CnpjDataset, CnpjDatasetFile, Source
@@ -267,6 +268,10 @@ def execute_discover_cnpj(job: Job) -> None:
     }
     query_run.finished_at = timezone.now()
     query_run.save()
+    if payload.get("coverage_complete") is True and query_run.status == QueryRun.Status.SUCCEEDED:
+        coverage = record_source_coverage(source=source, query_run=query_run)
+        query_run.coverage["source_coverage_id"] = coverage.pk
+        query_run.save(update_fields=("coverage",))
     Job.objects.filter(pk=job.pk).update(
         records_processed=total_rows,
         records_success=reader.stats.rows_matched,

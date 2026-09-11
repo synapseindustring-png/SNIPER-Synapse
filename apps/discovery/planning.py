@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
+from apps.discovery.coverage import find_valid_coverage
 from apps.sources.cnpj.storage import (
     CnpjCapacity,
     CnpjDownloadError,
@@ -9,6 +10,8 @@ from apps.sources.cnpj.storage import (
     validate_source_url,
 )
 from apps.sources.models import CnpjDataset, CnpjDatasetFile
+
+from .models import DiscoveryQuery, SourceCoverage
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,11 +22,10 @@ class PreviewPlan:
     dataset: CnpjDataset | None = None
     source_file: CnpjDatasetFile | None = None
     capacity: CnpjCapacity | None = None
+    coverage: SourceCoverage | None = None
 
 
-def build_preview_plan() -> PreviewPlan:
-    if not settings.CNPJ_SOURCE_BASE_URL or not settings.CNPJ_WEBDAV_TOKEN:
-        return PreviewPlan(False, False, "A origem CNPJ ainda não foi configurada.")
+def build_preview_plan(query: DiscoveryQuery | None = None) -> PreviewPlan:
     dataset = (
         CnpjDataset.objects.filter(
             source__key="receita-cnpj",
@@ -34,6 +36,22 @@ def build_preview_plan() -> PreviewPlan:
         .select_related("source")
         .first()
     )
+    if dataset and query:
+        coverage = find_valid_coverage(
+            source=dataset.source,
+            dataset_reference=dataset.reference,
+            query=query,
+        )
+        if coverage:
+            return PreviewPlan(
+                True,
+                True,
+                "Cobertura local válida: nenhum download será realizado.",
+                dataset=dataset,
+                coverage=coverage,
+            )
+    if not settings.CNPJ_SOURCE_BASE_URL or not settings.CNPJ_WEBDAV_TOKEN:
+        return PreviewPlan(False, False, "A origem CNPJ ainda não foi configurada.")
     if not dataset:
         return PreviewPlan(False, False, "Nenhum manifesto CNPJ validado está disponível.")
     source_file = (

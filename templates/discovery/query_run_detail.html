@@ -8,6 +8,7 @@
   <div><p class="eyebrow">{{ run.query.name }}</p><h2>{{ run.get_status_display }}</h2><p>Competência {{ run.dataset_reference|default:"aguardando" }}</p></div>
   <span class="status-pill">{{ run.records_matched }} resultados</span>
 </div>
+{% if run.coverage.cache_hit %}<div class="flash success">Esta execução reutilizou uma cobertura local válida. Nenhum download ou nova varredura foi realizado.</div>{% endif %}
 <div class="metric-grid three">
   <article><span>Registros lidos</span><strong>{{ run.records_processed }}</strong></article>
   <article><span>Correspondências</span><strong>{{ run.records_matched }}</strong></article>

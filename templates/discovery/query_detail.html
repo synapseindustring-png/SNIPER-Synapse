@@ -18,7 +18,7 @@
   </article>
 
   <article class="panel compact">
-    <div class="panel-head"><h2>Estimativa da prévia</h2><span>{% if plan.allowed %}Permitida{% else %}Bloqueada{% endif %}</span></div>
+    <div class="panel-head"><h2>Estimativa da prévia</h2><span>{% if plan.coverage %}Cache local{% elif plan.allowed %}Permitida{% else %}Bloqueada{% endif %}</span></div>
     <p>{{ plan.reason }}</p>
     {% if plan.source_file and plan.capacity %}
     <dl class="facts">
@@ -32,9 +32,9 @@
     <form method="post" action="{% url 'query-run-preview' query.pk %}" class="inline-form">
       {% csrf_token %}
       {{ preview_form.max_results.label_tag }} {{ preview_form.max_results }}
-      <button class="button" type="submit"{% if not plan.allowed %} disabled{% endif %}>Executar prévia</button>
+      <button class="button" type="submit"{% if not plan.allowed %} disabled{% endif %}>{% if plan.coverage %}Usar resultados locais{% else %}Executar prévia{% endif %}</button>
     </form>
-    <small>A prévia usa somente a menor parte disponível e não representa cobertura nacional completa.</small>
+    {% if plan.coverage %}<small>Cobertura completa da competência {{ plan.dataset.reference }}, concluída em {{ plan.coverage.completed_at|date:"d/m/Y H:i" }}.</small>{% else %}<small>A prévia usa somente a menor parte disponível e não representa cobertura nacional completa.</small>{% endif %}
   </article>
 </div>
 

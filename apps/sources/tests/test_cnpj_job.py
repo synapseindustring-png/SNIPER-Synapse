@@ -8,7 +8,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from apps.companies.models import Company
-from apps.discovery.models import DiscoveryQuery, QueryRun
+from apps.discovery.models import DiscoveryQuery, QueryRun, SourceCoverage
 from apps.jobs.models import Job
 from apps.jobs.services import execute_job
 from apps.sources.models import (
@@ -64,6 +64,7 @@ class DiscoverCnpjJobTests(TestCase):
                 "dataset_reference": "2026-08",
                 "source_path": str(self.make_zip()),
                 "mode": "FULL",
+                "coverage_complete": True,
                 "filters": {
                     "registration_statuses": ["02"],
                     "states": ["MG"],
@@ -86,6 +87,9 @@ class DiscoverCnpjJobTests(TestCase):
         candidate = CnpjCandidate.objects.get(query_run=self.query_run)
         self.assertEqual(candidate.company.cnpj, "11111111000191")
         self.assertEqual(candidate.cnpj_basico, "11111111")
+        coverage = SourceCoverage.objects.get(query_run=self.query_run)
+        self.assertEqual(coverage.record_count, 1)
+        self.assertEqual(coverage.scope["filters"], self.query_run.query.normalized_filters)
 
     def test_preview_stops_at_limit_and_is_marked_partial(self):
         job = Job.objects.create(

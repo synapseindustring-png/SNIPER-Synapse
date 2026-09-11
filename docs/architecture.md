@@ -111,6 +111,12 @@ Sócios não entram no primeiro corte. CNAE secundário será dividido apenas pa
 
 Consultas posteriores usam primeiro a base curada. Se os filtros excederem a cobertura registrada, uma nova varredura seletiva será executada.
 
+Uma cobertura só é registrada por uma execução `SUCCEEDED` que o orquestrador declara ter
+percorrido todo o escopo. A chave combina fonte, competência, tipo de entidade, versão e
+filtros normalizados. Em um cache hit válido, os `QueryResult` são copiados de forma limitada
+para uma nova execução; `SourceRecord`, observações e empresas não são duplicados, e nenhum
+job de coleta é criado. Cobertura expirada, parcial ou de outra competência é ignorada.
+
 O staging é delimitado pelo teto do job e pertence ao `QueryRun`. A complementação aceita
 no máximo dez partes de Empresas e uma de Simples, processadas sequencialmente; cada leitor
 mantém em memória apenas o conjunto de CNPJs básicos candidatos e encerra cedo quando todos

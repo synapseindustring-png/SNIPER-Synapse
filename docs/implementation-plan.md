@@ -82,7 +82,9 @@ execução e os leitores seletivos de Empresas/Simples já enriquecem somente os
 candidatos, preservando payload e proveniência. A integração do ZIP local ou remoto com o job
 `DISCOVER_CNPJ` e a base curada já está implementada. O downloader remoto
 possui allowlist HTTPS, quota, reserva de disco, lock global, validação do ZIP e limpeza.
-O modo de prévia e os limites de persistência impedem consultas abertas ilimitadas.
+O modo de prévia e os limites de persistência impedem consultas abertas ilimitadas. O cache
+de cobertura exata por competência e escopo reutiliza resultados de execuções completas,
+ignora entradas expiradas e materializa novas execuções sem download.
 
 ### Entregáveis
 
@@ -227,7 +229,7 @@ O admin consegue responder, com evidências:
 ## Ordem técnica imediata
 
 1. persistir candidatos em staging e complementar Empresas/Simples — concluído;
-2. registrar cobertura/cache por competência e escopo;
+2. registrar cobertura/cache por competência e escopo — concluído;
 3. implementar processamento sequencial das dez partes no modo completo;
 4. adicionar painel detalhado do manifesto e saúde da fonte;
 5. adicionar heartbeat persistente e painel operacional do worker — concluído;

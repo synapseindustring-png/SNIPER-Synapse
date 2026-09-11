@@ -149,6 +149,13 @@ class SourceCoverage(models.Model):
         on_delete=models.CASCADE,
         related_name="coverage_entries",
     )
+    query_run = models.ForeignKey(
+        QueryRun,
+        on_delete=models.PROTECT,
+        related_name="source_coverages",
+        null=True,
+        blank=True,
+    )
     dataset_reference = models.CharField(max_length=80)
     scope = models.JSONField(default=dict)
     scope_hash = models.CharField(max_length=64)

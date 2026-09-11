@@ -20,7 +20,8 @@ parcial; `FULL` também possui teto de persistência.
 
 A interface de Consultas permite cadastrar filtros por UF, município e CNAE, visualizar a
 estimativa de download/espaço e solicitar uma prévia somente quando existe manifesto atual
-validado e capacidade de disco suficiente.
+validado e capacidade de disco suficiente. Coberturas completas da mesma competência e
+escopo são reutilizadas entre consultas equivalentes, sem novo job ou download.
 
 A interface de Indústrias lista somente a base curada local, com busca, filtros e paginação
 de 50 registros. Abrir essa lista ou o detalhe de uma empresa não executa coleta nem baixa

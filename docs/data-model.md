@@ -59,7 +59,9 @@ Restrição única: `(query_run_id, company_id)`.
 
 Registra quais filtros/competências já estão materializados localmente. Permite decidir se o cache atende uma nova consulta.
 
-Campos: `source`, `dataset_reference`, `scope_json`, `scope_hash`, `record_count`, `completed_at`, `expires_at`.
+Campos: `source`, `dataset_reference`, `scope_json`, `scope_hash`, `query_run`,
+`record_count`, `completed_at`, `expires_at`. A execução vinculada fornece o conjunto de
+resultados que pode ser materializado localmente para uma consulta equivalente.
 
 ### `cnpj_candidate`
 

@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from apps.jobs.models import Job
 
+from .coverage import materialize_cached_run
 from .forms import DiscoveryQueryForm, PreviewRunForm
 from .models import DiscoveryQuery, QueryRun
 from .planning import build_preview_plan
@@ -68,7 +69,7 @@ def query_detail(request, pk):
         "discovery/query_detail.html",
         {
             "query": query,
-            "plan": build_preview_plan(),
+            "plan": build_preview_plan(query),
             "preview_form": PreviewRunForm(),
             "runs": query.runs.all()[:20],
         },
@@ -80,13 +81,35 @@ def query_detail(request, pk):
 def query_run_preview(request, pk):
     query = _user_query(request, pk)
     form = PreviewRunForm(request.POST)
-    plan = build_preview_plan()
-    if not form.is_valid() or not plan.allowed or not plan.dataset or not plan.source_file:
+    plan = build_preview_plan(query)
+    if not form.is_valid() or not plan.allowed or not plan.dataset:
         reason = plan.reason if not plan.allowed else "O limite informado é inválido."
         messages.error(request, f"A prévia não foi iniciada: {reason}")
         return redirect("query-detail", pk=query.pk)
 
     max_results = form.cleaned_data["max_results"]
+    if plan.coverage:
+        existing_run = query.runs.filter(
+            dataset_reference=plan.dataset.reference,
+            coverage__mode="CACHE",
+            coverage__source_coverage_id=plan.coverage.pk,
+            coverage__max_results=max_results,
+        ).first()
+        if existing_run:
+            messages.info(request, "Esta consulta já foi atendida pelo cache local.")
+            return redirect("query-run-detail", pk=existing_run.pk)
+        run = materialize_cached_run(
+            query=query,
+            created_by=request.user,
+            coverage=plan.coverage,
+            max_results=max_results,
+        )
+        messages.success(request, "Resultados reutilizados do cache local, sem download.")
+        return redirect("query-run-detail", pk=run.pk)
+
+    if not plan.source_file:
+        messages.error(request, "A prévia não foi iniciada: arquivo de origem indisponível.")
+        return redirect("query-detail", pk=query.pk)
     idempotency_key = (
         f"cnpj-preview:{query.pk}:{plan.dataset.pk}:{plan.source_file.pk}:{max_results}"
     )
