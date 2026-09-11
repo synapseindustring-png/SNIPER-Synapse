@@ -1,9 +1,26 @@
+import logging
+import threading
+from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import timedelta
 
-from django.db import transaction
+from django.db import close_old_connections, transaction
 from django.utils import timezone
 
 from .models import Job, JobAttempt
+
+
+logger = logging.getLogger(__name__)
+
+
+class JobLeaseLost(RuntimeError):
+    """Raised when a worker no longer owns the job it was processing."""
+
+
+@dataclass(slots=True)
+class JobLeaseState:
+    lost: bool = False
+    renewals: int = 0
 
 
 @transaction.atomic
@@ -58,9 +75,70 @@ def claim_next_job(worker_id: str, lock_seconds: int) -> Job | None:
 
 
 @transaction.atomic
-def mark_succeeded(job_id) -> None:
+def renew_job_lease(job_id, worker_id: str, lock_seconds: int) -> bool:
+    if lock_seconds < 1:
+        raise ValueError("lock_seconds must be positive")
     now = timezone.now()
+    return bool(
+        Job.objects.filter(
+            pk=job_id,
+            status=Job.Status.RUNNING,
+            lock_owner=worker_id,
+        ).update(
+            heartbeat_at=now,
+            lock_expires_at=now + timedelta(seconds=lock_seconds),
+        )
+    )
+
+
+@contextmanager
+def maintain_job_lease(job_id, worker_id: str, lock_seconds: int):
+    """Renew a running job lease in a separate DB connection until work finishes."""
+    if lock_seconds < 1:
+        raise ValueError("lock_seconds must be positive")
+    state = JobLeaseState()
+    stop = threading.Event()
+    interval = max(0.25, lock_seconds / 3)
+
+    def heartbeat_loop():
+        close_old_connections()
+        try:
+            while not stop.wait(interval):
+                try:
+                    if not renew_job_lease(job_id, worker_id, lock_seconds):
+                        state.lost = True
+                        return
+                    state.renewals += 1
+                except Exception:
+                    logger.exception("job_heartbeat_failed", extra={"job_id": str(job_id)})
+                    close_old_connections()
+        finally:
+            close_old_connections()
+
+    thread = threading.Thread(
+        target=heartbeat_loop,
+        name=f"job-heartbeat-{job_id}",
+        daemon=True,
+    )
+    thread.start()
+    try:
+        yield state
+    finally:
+        stop.set()
+        thread.join(timeout=min(interval + 1, 5))
+
+
+def _owned_running_job(job_id, worker_id: str) -> Job:
     job = Job.objects.select_for_update().get(pk=job_id)
+    if job.status != Job.Status.RUNNING or job.lock_owner != worker_id:
+        raise JobLeaseLost(f"Worker {worker_id} no longer owns job {job_id}")
+    return job
+
+
+@transaction.atomic
+def mark_succeeded(job_id, worker_id: str) -> None:
+    now = timezone.now()
+    job = _owned_running_job(job_id, worker_id)
     job.status = Job.Status.SUCCEEDED
     job.finished_at = now
     job.lock_owner = ""
@@ -74,9 +152,9 @@ def mark_succeeded(job_id) -> None:
 
 
 @transaction.atomic
-def mark_failed(job_id, message: str) -> None:
+def mark_failed(job_id, worker_id: str, message: str) -> None:
     now = timezone.now()
-    job = Job.objects.select_for_update().get(pk=job_id)
+    job = _owned_running_job(job_id, worker_id)
     retry = job.attempt_count < job.max_attempts
     job.status = Job.Status.RETRY_SCHEDULED if retry else Job.Status.FAILED
     job.run_after = now + timedelta(seconds=min(300, 2 ** job.attempt_count))

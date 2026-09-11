@@ -64,7 +64,10 @@ MAPS_CONCURRENCY
 ```
 
 `WORKER_ID` é opcional. Quando ausente, cada container usa seu hostname, evitando que
-réplicas diferentes compartilhem a mesma identidade de lock.
+réplicas diferentes compartilhem a mesma identidade de lock. Durante cada execução, o
+worker renova `heartbeat_at` e `lock_expires_at` a cada terço de `JOB_LOCK_SECONDS`; use um
+lock maior que o pior atraso esperado do banco. Um worker que perdeu o lock não pode gravar
+sucesso nem falha sobre a tentativa assumida por outra réplica.
 
 O arquivo `.env.example` documentará nomes e valores seguros de exemplo. Secrets reais existem somente no Coolify/ambiente.
 

@@ -150,6 +150,10 @@ Regras operacionais:
 - mensagem de erro sanitizada para UI e detalhe técnico protegido para admin;
 - heartbeat para recuperar jobs abandonados.
 
+Durante a execução, cada worker renova o heartbeat e a expiração do lock em uma conexão
+separada. A conclusão ou falha só pode ser gravada pelo worker que ainda possui o lock;
+resultados de processos atrasados são descartados se outro worker já tiver recuperado o job.
+
 ## Deduplicação
 
 Correspondências fortes são automáticas:

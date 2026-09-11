@@ -229,7 +229,7 @@ O admin consegue responder, com evidências:
 2. registrar cobertura/cache por competência e escopo;
 3. implementar processamento sequencial das dez partes no modo completo;
 4. adicionar painel detalhado do manifesto e saúde da fonte;
-5. adicionar heartbeat persistente e painel operacional do worker;
+5. adicionar heartbeat persistente e painel operacional do worker — concluído;
 6. permitir correções administrativas preservando a proveniência.
 
 ## Dependências candidatas

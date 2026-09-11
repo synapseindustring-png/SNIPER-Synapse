@@ -4,7 +4,14 @@ import time
 
 from django.core.management.base import BaseCommand
 
-from apps.jobs.services import claim_next_job, execute_job, mark_failed, mark_succeeded
+from apps.jobs.services import (
+    JobLeaseLost,
+    claim_next_job,
+    execute_job,
+    maintain_job_lease,
+    mark_failed,
+    mark_succeeded,
+)
 
 
 class Command(BaseCommand):
@@ -28,14 +35,28 @@ class Command(BaseCommand):
 
             self.stdout.write(f"Processing {job.id} ({job.type})")
             try:
-                execute_job(job)
+                with maintain_job_lease(job.id, worker_id, lock_seconds) as lease:
+                    execute_job(job)
+                if lease.lost:
+                    raise JobLeaseLost(f"Worker lease was lost for job {job.id}")
             except Exception as exc:
-                mark_failed(job.id, f"{type(exc).__name__}: {exc}")
+                try:
+                    mark_failed(job.id, worker_id, f"{type(exc).__name__}: {exc}")
+                except JobLeaseLost:
+                    self.stderr.write(f"Job {job.id} lease was lost; result was discarded")
+                    if options["once"]:
+                        return
+                    continue
                 self.stderr.write(f"Job {job.id} failed: {exc}")
             else:
-                mark_succeeded(job.id)
+                try:
+                    mark_succeeded(job.id, worker_id)
+                except JobLeaseLost:
+                    self.stderr.write(f"Job {job.id} lease was lost; result was discarded")
+                    if options["once"]:
+                        return
+                    continue
                 self.stdout.write(self.style.SUCCESS(f"Job {job.id} succeeded"))
 
             if options["once"]:
                 return
-
