@@ -1,6 +1,7 @@
 import re
 
 from django import forms
+from django.conf import settings
 
 from .models import DiscoveryQuery
 
@@ -83,3 +84,24 @@ class PreviewRunForm(forms.Form):
         coerce=int,
         initial=100,
     )
+
+
+class FullRunForm(forms.Form):
+    max_results = forms.IntegerField(
+        label="Limite máximo de empresas",
+        min_value=1,
+        initial=1000,
+    )
+    confirm = forms.BooleanField(
+        label="Confirmo o processamento completo e o volume estimado",
+        required=True,
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["max_results"].max_value = settings.CNPJ_MAX_PERSISTED_MATCHES
+        self.fields["max_results"].initial = min(1000, settings.CNPJ_MAX_PERSISTED_MATCHES)
+        self.fields["max_results"].widget.attrs["max"] = settings.CNPJ_MAX_PERSISTED_MATCHES
+        self.fields["max_results"].help_text = (
+            f"Teto configurado: {settings.CNPJ_MAX_PERSISTED_MATCHES}."
+        )

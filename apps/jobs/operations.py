@@ -20,6 +20,7 @@ class StorageStatus:
     cnpj_min_free_bytes: int
     jobs_max_response_bytes: int
     safe_cnpj_capacity_bytes: int
+    cnpj_full_enabled: bool
 
 
 def storage_status() -> StorageStatus:
@@ -44,6 +45,7 @@ def storage_status() -> StorageStatus:
         cnpj_min_free_bytes=settings.CNPJ_MIN_FREE_BYTES,
         jobs_max_response_bytes=settings.JOBS_MAX_RESPONSE_BYTES,
         safe_cnpj_capacity_bytes=safe_capacity,
+        cnpj_full_enabled=settings.CNPJ_FULL_ENABLED,
     )
 
 

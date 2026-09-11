@@ -18,7 +18,7 @@
 <article class="panel compact">
   <div class="panel-head"><h2>Cobertura CNPJ</h2><span>{{ run.coverage.mode }}</span></div>
   <div class="score-summary">
-    <div><span>Candidatos no staging</span><strong>{{ run.coverage.staged_candidates }}</strong></div>
+    <div><span>Candidatos no staging</span><strong>{{ run.coverage.staged_candidates }}</strong><small>{{ run.coverage.establishments.rows_scanned }} linhas em {{ run.coverage.establishments.sources_processed }}/{{ run.coverage.establishments.sources_expected }} arquivo(s)</small></div>
     <div><span>Empresas localizadas</span><strong>{{ run.coverage.companies.basics_matched }}</strong><small>{{ run.coverage.companies.rows_scanned }} linhas lidas em {{ run.coverage.companies.sources_processed }} arquivo(s)</small></div>
     <div><span>Simples localizado</span><strong>{{ run.coverage.simples.basics_matched }}</strong><small>{{ run.coverage.simples.rows_scanned }} linhas lidas em {{ run.coverage.simples.sources_processed }} arquivo(s)</small></div>
     <div><span>Complementos ausentes</span><strong>{{ run.coverage.companies.basics_missing|add:run.coverage.simples.basics_missing }}</strong><small>Execução parcial quando arquivos foram solicitados</small></div>

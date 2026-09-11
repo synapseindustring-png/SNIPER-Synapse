@@ -38,6 +38,28 @@
   </article>
 </div>
 
+{% if request.user.is_staff %}
+<article class="panel compact">
+  <div class="panel-head"><h2>Execução completa</h2><span>{% if full_plan.allowed %}Disponível{% else %}Bloqueada{% endif %}</span></div>
+  <p>{{ full_plan.reason }}</p>
+  {% if full_plan.dataset %}
+  <dl class="facts">
+    <div><dt>Competência</dt><dd>{{ full_plan.dataset.reference }}</dd></div>
+    <div><dt>Arquivos</dt><dd>{{ full_plan.establishment_files|length }} Estabelecimentos + {{ full_plan.company_files|length }} Empresas + Simples</dd></div>
+    <div><dt>Transferência estimada</dt><dd>{{ full_plan.total_transfer_bytes|filesizeformat }}</dd></div>
+    <div><dt>Pico temporário</dt><dd>{{ full_plan.peak_temp_bytes|filesizeformat }}</dd></div>
+  </dl>
+  {% endif %}
+  <form method="post" action="{% url 'query-run-full' query.pk %}" class="inline-form">
+    {% csrf_token %}
+    <div>{{ full_form.max_results.label_tag }} {{ full_form.max_results }}<small>{{ full_form.max_results.help_text }}</small></div>
+    <label>{{ full_form.confirm }} {{ full_form.confirm.label }}</label>
+    <button class="button" type="submit"{% if not full_plan.allowed %} disabled{% endif %}>Executar processamento completo</button>
+  </form>
+  <small>Somente um ZIP fica no disco por vez. Cada arquivo é apagado antes do próximo download.</small>
+</article>
+{% endif %}
+
 <article class="panel table-panel">
   <div class="panel-head"><h2>Execuções</h2><span>{{ runs|length }} recentes</span></div>
   {% if runs %}

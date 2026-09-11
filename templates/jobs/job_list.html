@@ -14,7 +14,7 @@
 </div>
 
 <article class="panel compact storage-panel">
-  <div class="panel-head"><h2>Capacidade de armazenamento</h2><span>{{ storage.path }}</span></div>
+  <div class="panel-head"><h2>Capacidade de armazenamento</h2><span>{{ storage.path }} · FULL {% if storage.cnpj_full_enabled %}habilitado{% else %}desabilitado{% endif %}</span></div>
   <div class="score-summary">
     <div><span>Espaço livre</span><strong>{{ storage.free_bytes|filesizeformat }}</strong></div>
     <div><span>Reserva mínima</span><strong>{{ storage.cnpj_min_free_bytes|filesizeformat }}</strong></div>

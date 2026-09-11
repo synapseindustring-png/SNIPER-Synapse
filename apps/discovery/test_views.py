@@ -31,6 +31,36 @@ class DiscoveryViewsTests(TestCase):
             created_by=self.user,
         )
 
+    def create_full_manifest(self):
+        source = Source.objects.get(key="receita-cnpj")
+        dataset = CnpjDataset.objects.create(
+            source=source,
+            reference="2026-08",
+            status=CnpjDataset.Status.READY,
+            is_current=True,
+            discovered_at=timezone.now(),
+        )
+        for part_number in range(10):
+            for kind, prefix in (
+                (CnpjDatasetFile.Kind.ESTABLISHMENTS, "Estabelecimentos"),
+                (CnpjDatasetFile.Kind.COMPANIES, "Empresas"),
+            ):
+                CnpjDatasetFile.objects.create(
+                    dataset=dataset,
+                    kind=kind,
+                    part_number=part_number,
+                    url=f"https://receita.example/CNPJ/2026-08/{prefix}{part_number}.zip",
+                    size_bytes=1024 + part_number,
+                )
+        CnpjDatasetFile.objects.create(
+            dataset=dataset,
+            kind=CnpjDatasetFile.Kind.SIMPLES,
+            part_number=0,
+            url="https://receita.example/CNPJ/2026-08/Simples.zip",
+            size_bytes=800,
+        )
+        return dataset
+
     def test_create_query_from_structured_form(self):
         response = self.client.post(
             reverse("query-create"),
@@ -193,3 +223,42 @@ class DiscoveryViewsTests(TestCase):
         self.assertEqual(cached_run.records_processed, 0)
         self.assertEqual(cached_run.results.get().company, company)
         self.assertFalse(Job.objects.filter(type=Job.Type.DISCOVER_CNPJ).exists())
+
+    def test_only_staff_can_request_full_run(self):
+        query = self.create_query()
+
+        response = self.client.post(
+            reverse("query-run-full", args=[query.pk]),
+            {"max_results": 100, "confirm": "on"},
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(Job.objects.filter(type=Job.Type.DISCOVER_CNPJ).exists())
+
+    def test_staff_can_enqueue_full_manifest_run_after_confirmation(self):
+        self.user.is_staff = True
+        self.user.save(update_fields=("is_staff",))
+        query = self.create_query()
+        dataset = self.create_full_manifest()
+        with tempfile.TemporaryDirectory() as temporary, override_settings(
+            TEMP_DATA_DIR=Path(temporary),
+            CNPJ_FULL_ENABLED=True,
+            CNPJ_SOURCE_BASE_URL="https://receita.example/CNPJ/",
+            CNPJ_WEBDAV_TOKEN="public-token",
+            CNPJ_MAX_TEMP_BYTES=2048,
+            CNPJ_MIN_FREE_BYTES=0,
+        ):
+            response = self.client.post(
+                reverse("query-run-full", args=[query.pk]),
+                {"max_results": 100, "confirm": "on"},
+            )
+
+        run = QueryRun.objects.get(query=query)
+        job = Job.objects.get(type=Job.Type.DISCOVER_CNPJ)
+        self.assertRedirects(response, reverse("query-run-detail", args=[run.pk]))
+        self.assertEqual(job.payload["mode"], "FULL")
+        self.assertEqual(len(job.payload["source_urls"]), 10)
+        self.assertEqual(len(job.payload["company_source_urls"]), 10)
+        self.assertEqual(len(job.payload["simples_source_urls"]), 1)
+        self.assertTrue(job.payload["coverage_complete"])
+        self.assertEqual(job.payload["dataset_reference"], dataset.reference)

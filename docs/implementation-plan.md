@@ -75,7 +75,8 @@ múltiplas partes ainda estão pendentes.
 
 ## Fase 3 — CNPJ seletivo
 
-Status: em andamento. O leitor de estabelecimentos em ZIP, os filtros antecipados e
+Status: concluída no código e em fixtures controladas; a primeira execução real permanece
+uma decisão operacional. O leitor de estabelecimentos em ZIP, os filtros antecipados e
 fixtures pequenas estão implementados e testados. A descoberta WebDAV do manifesto oficial
 e a seleção da competência mais recente estão implementadas. O staging limitado por
 execução e os leitores seletivos de Empresas/Simples já enriquecem somente os CNPJs básicos
@@ -85,6 +86,8 @@ possui allowlist HTTPS, quota, reserva de disco, lock global, validação do ZIP
 O modo de prévia e os limites de persistência impedem consultas abertas ilimitadas. O cache
 de cobertura exata por competência e escopo reutiliza resultados de execuções completas,
 ignora entradas expiradas e materializa novas execuções sem download.
+O modo completo staff percorre as dez partes de Estabelecimentos e Empresas e o Simples
+sequencialmente, com confirmação, kill switch e cálculo do maior pico temporário.
 
 ### Entregáveis
 
@@ -230,7 +233,7 @@ O admin consegue responder, com evidências:
 
 1. persistir candidatos em staging e complementar Empresas/Simples — concluído;
 2. registrar cobertura/cache por competência e escopo — concluído;
-3. implementar processamento sequencial das dez partes no modo completo;
+3. implementar processamento sequencial das dez partes no modo completo — concluído;
 4. adicionar painel detalhado do manifesto e saúde da fonte;
 5. adicionar heartbeat persistente e painel operacional do worker — concluído;
 6. permitir correções administrativas preservando a proveniência.

@@ -9,15 +9,17 @@ from django.utils import timezone
 from apps.jobs.models import Job
 
 from .coverage import materialize_cached_run
-from .forms import DiscoveryQueryForm, PreviewRunForm
+from .forms import DiscoveryQueryForm, FullRunForm, PreviewRunForm
 from .models import DiscoveryQuery, QueryRun
-from .planning import build_preview_plan
+from .planning import build_full_plan, build_preview_plan
 
 
 @login_required
 def query_list(request):
     queries = DiscoveryQuery.objects.filter(created_by=request.user).prefetch_related("runs")
-    manifest_job = Job.objects.filter(type=Job.Type.SYNC_CNPJ_SOURCE).order_by("-created_at").first()
+    manifest_job = (
+        Job.objects.filter(type=Job.Type.SYNC_CNPJ_SOURCE).order_by("-created_at").first()
+    )
     return render(
         request,
         "discovery/query_list.html",
@@ -71,6 +73,8 @@ def query_detail(request, pk):
             "query": query,
             "plan": build_preview_plan(query),
             "preview_form": PreviewRunForm(),
+            "full_plan": build_full_plan(query) if request.user.is_staff else None,
+            "full_form": FullRunForm() if request.user.is_staff else None,
             "runs": query.runs.all()[:20],
         },
     )
@@ -117,7 +121,10 @@ def query_run_preview(request, pk):
     if existing_job:
         run_id = existing_job.payload.get("query_run_id")
         if run_id:
-            messages.info(request, "Esta prévia já foi solicitada; exibindo a execução existente.")
+            messages.info(
+                request,
+                "Esta prévia já foi solicitada; exibindo a execução existente.",
+            )
             return redirect("query-run-detail", pk=run_id)
         raise Http404
 
@@ -140,6 +147,59 @@ def query_run_preview(request, pk):
             },
         )
     messages.success(request, "Prévia adicionada à fila.")
+    return redirect("query-run-detail", pk=query_run.pk)
+
+
+@login_required
+@require_POST
+def query_run_full(request, pk):
+    if not request.user.is_staff:
+        raise Http404
+    query = _user_query(request, pk)
+    form = FullRunForm(request.POST)
+    plan = build_full_plan(query)
+    if not form.is_valid() or not plan.allowed or not plan.dataset or not plan.simples_file:
+        reason = plan.reason if not plan.allowed else "Revise o limite e a confirmação."
+        messages.error(request, f"A execução completa não foi iniciada: {reason}")
+        return redirect("query-detail", pk=query.pk)
+
+    max_results = form.cleaned_data["max_results"]
+    idempotency_key = f"cnpj-full:{query.pk}:{plan.dataset.pk}:{max_results}"
+    existing_job = Job.objects.filter(idempotency_key=idempotency_key).first()
+    if existing_job:
+        run_id = existing_job.payload.get("query_run_id")
+        if run_id:
+            messages.info(request, "Esta execução completa já foi solicitada.")
+            return redirect("query-run-detail", pk=run_id)
+        raise Http404
+
+    with transaction.atomic():
+        query_run = QueryRun.objects.create(
+            query=query,
+            created_by=request.user,
+            dataset_reference=plan.dataset.reference,
+        )
+        Job.objects.create(
+            type=Job.Type.DISCOVER_CNPJ,
+            priority=5,
+            idempotency_key=idempotency_key,
+            payload={
+                "query_run_id": str(query_run.pk),
+                "dataset_reference": plan.dataset.reference,
+                "source_urls": [source_file.url for source_file in plan.establishment_files],
+                "company_source_urls": [source_file.url for source_file in plan.company_files],
+                "simples_source_urls": [plan.simples_file.url],
+                "mode": "FULL",
+                "max_results": max_results,
+                "filters": query.normalized_filters,
+                "coverage_complete": True,
+                "expected_establishment_parts": 10,
+            },
+        )
+    messages.success(
+        request,
+        "Execução completa adicionada à fila; os arquivos serão processados um por vez.",
+    )
     return redirect("query-run-detail", pk=query_run.pk)
 
 

@@ -16,7 +16,9 @@ imutáveis, observações por campo, consultas, execuções, resultados e cobert
 
 Downloads CNPJ operam com quota e reserva de disco, um arquivo por vez, validação integral
 e exclusão após uso. O modo padrão é `PREVIEW`, limitado e explicitamente marcado como
-parcial; `FULL` também possui teto de persistência.
+parcial. O modo `FULL`, restrito a staff e desligado por padrão, orquestra as 10 partes de
+Estabelecimentos, 10 de Empresas e o Simples; exige confirmação, teto de persistência e
+apaga cada ZIP antes de iniciar o próximo.
 
 A interface de Consultas permite cadastrar filtros por UF, município e CNAE, visualizar a
 estimativa de download/espaço e solicitar uma prévia somente quando existe manifesto atual

@@ -9,5 +9,6 @@ urlpatterns = [
     path("new/", views.query_create, name="query-create"),
     path("<uuid:pk>/", views.query_detail, name="query-detail"),
     path("<uuid:pk>/preview/", views.query_run_preview, name="query-run-preview"),
+    path("<uuid:pk>/full/", views.query_run_full, name="query-run-full"),
     path("runs/<uuid:pk>/", views.query_run_detail, name="query-run-detail"),
 ]

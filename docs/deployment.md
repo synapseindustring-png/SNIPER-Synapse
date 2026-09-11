@@ -46,12 +46,15 @@ WORKER_POLL_SECONDS
 JOB_LOCK_SECONDS
 TEMP_DATA_DIR
 CNPJ_SOURCE_BASE_URL
+CNPJ_WEBDAV_TOKEN
+CNPJ_MANIFEST_MAX_BYTES
 CNPJ_MAX_TEMP_BYTES
 CNPJ_MIN_FREE_BYTES
 CNPJ_DOWNLOAD_TIMEOUT_SECONDS
 CNPJ_PREVIEW_MAX_RESULTS
 CNPJ_MAX_PERSISTED_MATCHES
 CNPJ_TEMP_MAX_AGE_SECONDS
+CNPJ_FULL_ENABLED
 CRAWLER_USER_AGENT
 CRAWLER_CONTACT
 CRAWLER_TIMEOUT_SECONDS
@@ -79,6 +82,11 @@ O arquivo `.env.example` documentará nomes e valores seguros de exemplo. Secret
 - arquivos estáticos: conforme estratégia do proxy/Coolify.
 
 Downloads CNPJ não são backup nem dado permanente. Um job interrompido deve poder retomar ou limpar somente seu diretório isolado.
+
+`CNPJ_FULL_ENABLED` deve permanecer `false` até o manifesto, a quota e a reserva de disco
+serem conferidos no painel. Habilitá-lo apenas libera o formulário staff; nenhum job é
+criado sem confirmação explícita. Desabilitá-lo também impede no worker a execução de jobs
+remotos completos que ainda estejam na fila.
 
 O downloader mantém no máximo uma parte, usa extensão `.part`, exige `Content-Length`,
 verifica quota e espaço livre antes de gravar, valida o ZIP e promove o arquivo

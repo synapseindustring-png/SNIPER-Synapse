@@ -125,6 +125,12 @@ seguinte. Complementos solicitados e não encontrados deixam a execução como p
 O modo `PREVIEW` nunca aceita complementos; URLs remotas precisam constar no manifesto
 `READY` da mesma competência informada pelo job.
 
+O modo `FULL` remoto aceita somente o conjunto exato das dez partes de Estabelecimentos,
+dez de Empresas e uma de Simples do manifesto. A UI é restrita a staff, exige confirmação
+e permanece bloqueada por `CNPJ_FULL_ENABLED=false`. A estimativa mostra o tráfego total,
+mas a autorização de disco considera o maior arquivo individual, pois os contextos de
+download não se sobrepõem. Se o teto de candidatos for atingido, não há cobertura completa.
+
 ## Contrato conceitual dos adapters
 
 ```python

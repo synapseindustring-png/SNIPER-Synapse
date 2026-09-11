@@ -4,7 +4,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from apps.companies.models import Company
@@ -65,6 +65,7 @@ class DiscoverCnpjJobTests(TestCase):
                 "source_path": str(self.make_zip()),
                 "mode": "FULL",
                 "coverage_complete": True,
+                "expected_establishment_parts": 1,
                 "filters": {
                     "registration_statuses": ["02"],
                     "states": ["MG"],
@@ -232,4 +233,131 @@ class DiscoverCnpjJobTests(TestCase):
         )
 
         with self.assertRaisesMessage(ValueError, "not part"):
+            execute_job(job)
+
+    def test_full_job_processes_all_establishment_parts_sequentially(self):
+        source_paths = [str(self.make_zip()) for _ in range(3)]
+        job = Job.objects.create(
+            type=Job.Type.DISCOVER_CNPJ,
+            payload={
+                "query_run_id": str(self.query_run.id),
+                "dataset_reference": "fixture-2026-08",
+                "source_paths": source_paths,
+                "mode": "FULL",
+                "filters": {
+                    "registration_statuses": ["02"],
+                    "states": ["MG"],
+                    "cnae_prefixes": ["10"],
+                },
+                "coverage_complete": True,
+                "expected_establishment_parts": 3,
+            },
+        )
+
+        execute_job(job)
+
+        self.query_run.refresh_from_db()
+        job.refresh_from_db()
+        self.assertEqual(self.query_run.status, QueryRun.Status.SUCCEEDED)
+        self.assertEqual(self.query_run.records_processed, 12)
+        self.assertEqual(self.query_run.records_matched, 3)
+        self.assertEqual(
+            self.query_run.coverage["establishments"]["sources_processed"],
+            3,
+        )
+        self.assertEqual(Company.objects.count(), 1)
+        self.assertEqual(self.query_run.results.count(), 1)
+        self.assertTrue(SourceCoverage.objects.filter(query_run=self.query_run).exists())
+
+    def test_complete_coverage_rejects_missing_establishment_part(self):
+        job = Job.objects.create(
+            type=Job.Type.DISCOVER_CNPJ,
+            payload={
+                "query_run_id": str(self.query_run.id),
+                "dataset_reference": "fixture-2026-08",
+                "source_paths": [str(self.make_zip())],
+                "mode": "FULL",
+                "filters": {"states": ["MG"]},
+                "coverage_complete": True,
+                "expected_establishment_parts": 2,
+            },
+        )
+
+        with self.assertRaisesMessage(ValueError, "every expected"):
+            execute_job(job)
+
+        self.assertFalse(SourceCoverage.objects.exists())
+
+    @override_settings(CNPJ_FULL_ENABLED=False)
+    def test_remote_full_job_stops_when_kill_switch_is_disabled(self):
+        job = Job.objects.create(
+            type=Job.Type.DISCOVER_CNPJ,
+            payload={
+                "query_run_id": str(self.query_run.id),
+                "dataset_reference": "2026-08",
+                "source_url": "https://receita.example/CNPJ/2026-08/Estabelecimentos0.zip",
+                "mode": "FULL",
+                "filters": {"states": ["MG"]},
+            },
+        )
+
+        with self.assertRaisesMessage(ValueError, "kill switch"):
+            execute_job(job)
+
+    @override_settings(CNPJ_FULL_ENABLED=True)
+    def test_complete_remote_job_requires_each_manifest_file_exactly_once(self):
+        source = Source.objects.get(key="receita-cnpj")
+        dataset = CnpjDataset.objects.create(
+            source=source,
+            reference="2026-08",
+            status=CnpjDataset.Status.READY,
+            discovered_at=timezone.now(),
+        )
+        establishment_urls = []
+        company_urls = []
+        for part_number in range(10):
+            establishment_urls.append(
+                f"https://receita.example/CNPJ/2026-08/Estabelecimentos{part_number}.zip"
+            )
+            company_urls.append(
+                f"https://receita.example/CNPJ/2026-08/Empresas{part_number}.zip"
+            )
+            CnpjDatasetFile.objects.create(
+                dataset=dataset,
+                kind=CnpjDatasetFile.Kind.ESTABLISHMENTS,
+                part_number=part_number,
+                url=establishment_urls[-1],
+                size_bytes=100,
+            )
+            CnpjDatasetFile.objects.create(
+                dataset=dataset,
+                kind=CnpjDatasetFile.Kind.COMPANIES,
+                part_number=part_number,
+                url=company_urls[-1],
+                size_bytes=100,
+            )
+        simples_url = "https://receita.example/CNPJ/2026-08/Simples.zip"
+        CnpjDatasetFile.objects.create(
+            dataset=dataset,
+            kind=CnpjDatasetFile.Kind.SIMPLES,
+            part_number=0,
+            url=simples_url,
+            size_bytes=100,
+        )
+        job = Job.objects.create(
+            type=Job.Type.DISCOVER_CNPJ,
+            payload={
+                "query_run_id": str(self.query_run.id),
+                "dataset_reference": "2026-08",
+                "source_urls": [establishment_urls[0]] * 10,
+                "company_source_urls": company_urls,
+                "simples_source_urls": [simples_url],
+                "mode": "FULL",
+                "filters": {"states": ["MG"]},
+                "coverage_complete": True,
+                "expected_establishment_parts": 10,
+            },
+        )
+
+        with self.assertRaisesMessage(ValueError, "every manifest"):
             execute_job(job)

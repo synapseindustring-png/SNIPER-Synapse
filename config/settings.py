@@ -33,6 +33,7 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 
 JOBS_ADAPTER_ENABLED = env_bool("JOBS_ADAPTER_ENABLED", False)
+CNPJ_FULL_ENABLED = env_bool("CNPJ_FULL_ENABLED", False)
 
 
 def env_list(name: str, default: str = "") -> list[str]:
