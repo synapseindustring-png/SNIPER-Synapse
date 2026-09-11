@@ -228,6 +228,11 @@ filtráveis, tentativas, contadores, métricas e erros; fontes mostram configura
 ocultados antes da renderização. Capacidade de disco é consultada no ancestral existente de
 `TEMP_DATA_DIR`, sem criar diretórios ou percorrer arquivos.
 
+O diagnóstico CNPJ usa exclusivamente manifesto, jobs e capacidade local. Considera saudável
+somente a competência `READY` atual com as partes 10+10+1, verificação dentro de
+`CNPJ_MANIFEST_MAX_AGE_DAYS` e capacidade segura para o maior ZIP. A tela nunca executa
+`PROPFIND`, download ou sincronização implicitamente.
+
 O ranking de indústrias é calculado por subqueries sobre o snapshot mais recente e o override
 ativo, sem materializar cópias. Sinais expirados não atendem ao filtro. A exportação reutiliza
 os mesmos filtros/ordenação, limita a consulta a 500 linhas, transmite CSV diretamente e

@@ -64,7 +64,9 @@ também exige motivo. Recoletas posteriores preservam decisões humanas já toma
 O painel staff de Jobs e fontes apresenta estados da fila, tentativas, métricas, falhas,
 fontes habilitadas e atividade local. Também compara espaço livre, quota temporária CNPJ,
 reserva mínima e limite de resposta de vagas. O painel é somente leitura e sanitiza payloads,
-URLs, erros e métricas antes de exibi-los.
+URLs, erros e métricas antes de exibi-los. A fonte CNPJ possui diagnóstico próprio com
+competência, integridade 10+10+1, recência, volume, maior ZIP, capacidade segura, arquivos
+do manifesto e histórico de jobs, sem fazer requisição externa ao abrir a página.
 
 A lista de indústrias funciona como ranking comercial local: prioridade efetiva (incluindo
 override), classificação, produto, sinal ativo e recência podem ser filtrados e ordenados.

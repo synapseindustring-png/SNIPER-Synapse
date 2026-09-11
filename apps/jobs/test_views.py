@@ -58,6 +58,7 @@ class JobOperationsViewsTests(TestCase):
             self.client.get(reverse("job-detail", args=[self.job.pk])).status_code,
             404,
         )
+        self.assertEqual(self.client.get(reverse("cnpj-source-detail")).status_code, 404)
 
     @patch("apps.jobs.operations.shutil.disk_usage")
     def test_list_filters_jobs_and_displays_sources_and_safe_capacity(self, disk_usage):
@@ -115,3 +116,18 @@ class JobOperationsViewsTests(TestCase):
             "metric-secret",
         ):
             self.assertNotContains(response, secret)
+
+    @patch("apps.sources.cnpj.health.storage_status")
+    def test_staff_can_open_read_only_cnpj_source_panel(self, source_storage_status):
+        source_storage_status.return_value = type(
+            "Storage",
+            (),
+            {"safe_cnpj_capacity_bytes": 10_000},
+        )()
+        self.client.force_login(self.staff)
+
+        response = self.client.get(reverse("cnpj-source-detail"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Diagnóstico local e somente leitura")
+        self.assertContains(response, "Sem manifesto")

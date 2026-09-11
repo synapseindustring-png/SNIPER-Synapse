@@ -234,7 +234,7 @@ O admin consegue responder, com evidências:
 1. persistir candidatos em staging e complementar Empresas/Simples — concluído;
 2. registrar cobertura/cache por competência e escopo — concluído;
 3. implementar processamento sequencial das dez partes no modo completo — concluído;
-4. adicionar painel detalhado do manifesto e saúde da fonte;
+4. adicionar painel detalhado do manifesto e saúde da fonte — concluído;
 5. adicionar heartbeat persistente e painel operacional do worker — concluído;
 6. permitir correções administrativas preservando a proveniência.
 

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Fonte CNPJ · Synapse Sniper{% endblock %}
+{% block heading %}Fonte CNPJ{% endblock %}
+
+{% block content %}
+<div class="page-actions"><p>Diagnóstico local e somente leitura. Esta tela não consulta a Receita nem inicia downloads.</p><a class="button secondary" href="{% url 'job-list' %}">Voltar aos jobs</a></div>
+
+<div class="notice light"><div><p class="eyebrow">Saúde do manifesto</p><h2>{{ health.label }}</h2><p>{{ health.reason }}</p></div><span class="status status-{% if health.state == 'healthy' %}succeeded{% else %}failed{% endif %}">{{ health.state }}</span></div>
+
+<div class="metric-grid">
+  <article><span>Competência atual</span><strong>{% if health.dataset %}{{ health.dataset.reference }}{% else %}—{% endif %}</strong><small>{% if health.dataset %}Verificada em {{ health.dataset.verified_at|date:"d/m/Y H:i"|default:"não verificada" }}{% else %}Sem manifesto{% endif %}</small></article>
+  <article><span>Partes</span><strong>{{ health.establishment_parts }}+{{ health.company_parts }}+{{ health.simples_parts }}</strong><small>Esperado: 10 Estabelecimentos + 10 Empresas + 1 Simples</small></article>
+  <article><span>Transferência total</span><strong>{{ health.total_bytes|filesizeformat }}</strong><small>{{ health.total_files }} arquivos no manifesto</small></article>
+  <article><span>Maior ZIP</span><strong>{{ health.largest_file_bytes|filesizeformat }}</strong><small>Capacidade segura: {{ health.safe_capacity_bytes|filesizeformat }}</small></article>
+</div>
+
+{% if health.dataset %}
+<article class="panel table-panel">
+  <div class="panel-head"><h2>Arquivos da competência atual</h2><span>FULL {% if storage.cnpj_full_enabled %}habilitado{% else %}desabilitado{% endif %}</span></div>
+  <table><thead><tr><th>Tipo</th><th>Parte</th><th>Tamanho</th><th>ETag</th><th>Checksum</th></tr></thead><tbody>
+    {% for source_file in health.dataset.files.all %}<tr><td>{{ source_file.get_kind_display }}</td><td>{{ source_file.part_number }}</td><td>{{ source_file.size_bytes|filesizeformat }}</td><td><code>{{ source_file.etag|default:"—" }}</code></td><td><code>{{ source_file.checksum|default:"pendente" }}</code></td></tr>{% endfor %}
+  </tbody></table>
+</article>
+{% endif %}
+
+<article class="panel table-panel">
+  <div class="panel-head"><h2>Histórico de competências</h2><span>{{ datasets|length }} recentes</span></div>
+  {% if datasets %}<table><thead><tr><th>Competência</th><th>Estado</th><th>Atual</th><th>Arquivos</th><th>Volume</th><th>Descoberta</th></tr></thead><tbody>
+    {% for dataset in datasets %}<tr><td>{{ dataset.reference }}</td><td>{{ dataset.get_status_display }}</td><td>{% if dataset.is_current %}Sim{% else %}Não{% endif %}</td><td>{{ dataset.files.all|length }}</td><td>{{ dataset.local_total_bytes|filesizeformat }}</td><td>{{ dataset.discovered_at|date:"d/m/Y H:i" }}</td></tr>{% endfor %}
+  </tbody></table>{% else %}<div class="empty-state small">Nenhuma competência sincronizada.</div>{% endif %}
+</article>
+
+<article class="panel table-panel">
+  <div class="panel-head"><h2>Jobs CNPJ recentes</h2><span>{{ recent_jobs|length }}</span></div>
+  {% if recent_jobs %}<table><thead><tr><th>Job</th><th>Tipo</th><th>Status</th><th>Registros</th><th>Heartbeat</th><th>Erro</th></tr></thead><tbody>
+    {% for job in recent_jobs %}<tr><td><a class="table-link" href="{% url 'job-detail' job.pk %}">{{ job.pk }}</a></td><td>{{ job.get_type_display }}</td><td><span class="status status-{{ job.status|lower }}">{{ job.get_status_display }}</span></td><td>{{ job.records_success }}/{{ job.records_processed }}</td><td>{{ job.heartbeat_at|date:"d/m/Y H:i:s"|default:"—" }}</td><td>{{ job.safe_error_summary|truncatechars:160|default:"—" }}</td></tr>{% endfor %}
+  </tbody></table>{% else %}<div class="empty-state small">Nenhum job CNPJ registrado.</div>{% endif %}
+</article>
+{% endblock %}

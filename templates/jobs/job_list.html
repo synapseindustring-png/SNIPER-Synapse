@@ -39,7 +39,7 @@
 <article class="panel table-panel">
   <div class="panel-head"><h2>Fontes</h2><span>Configuração e atividade local</span></div>
   <table><thead><tr><th>Fonte</th><th>Estado</th><th>Adapter</th><th>Registros</th><th>Última coleta</th><th>Limites</th></tr></thead><tbody>
-    {% for source in sources %}<tr><td><strong>{{ source.name }}</strong><br><small>{{ source.key }}</small></td><td>{% if source.enabled %}<span class="status status-succeeded">Habilitada</span>{% else %}<span class="status">Desligada</span>{% endif %}</td><td><code>{{ source.adapter_path|default:"Interno" }}</code></td><td>{{ source.record_count }}</td><td>{{ source.last_record_at|date:"d/m/Y H:i"|default:"—" }}</td><td><code>{{ source.rate_limit|default:"—" }}</code></td></tr>{% endfor %}
+    {% for source in sources %}<tr><td>{% if source.key == "receita-cnpj" %}<a class="table-link" href="{% url 'cnpj-source-detail' %}"><strong>{{ source.name }}</strong></a>{% else %}<strong>{{ source.name }}</strong>{% endif %}<br><small>{{ source.key }}</small></td><td>{% if source.enabled %}<span class="status status-succeeded">Habilitada</span>{% else %}<span class="status">Desligada</span>{% endif %}</td><td><code>{{ source.adapter_path|default:"Interno" }}</code></td><td>{{ source.record_count }}</td><td>{{ source.last_record_at|date:"d/m/Y H:i"|default:"—" }}</td><td><code>{{ source.rate_limit|default:"—" }}</code></td></tr>{% endfor %}
   </tbody></table>
 </article>
 {% endblock %}

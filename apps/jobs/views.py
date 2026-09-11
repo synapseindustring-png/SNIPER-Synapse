@@ -4,7 +4,8 @@ from django.db.models import Count, Max, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 
-from apps.sources.models import Source
+from apps.sources.cnpj.health import manifest_health
+from apps.sources.models import CnpjDataset, Source
 
 from .forms import JobFilterForm
 from .models import Job
@@ -75,6 +76,35 @@ def job_detail(request, pk):
             "job": job,
             "safe_payload": sanitize_job_data(job.payload),
             "safe_error_summary": sanitize_job_data(job.error_summary),
+        },
+    )
+
+
+@login_required
+def cnpj_source_detail(request):
+    _require_staff(request)
+    health = manifest_health()
+    datasets = list(
+        CnpjDataset.objects.filter(source__key="receita-cnpj")
+        .select_related("source")
+        .prefetch_related("files")[:12]
+    )
+    for dataset in datasets:
+        dataset.local_total_bytes = sum(item.size_bytes for item in dataset.files.all())
+    recent_jobs = list(
+        Job.objects.filter(type__in=(Job.Type.SYNC_CNPJ_SOURCE, Job.Type.DISCOVER_CNPJ))
+        .prefetch_related("attempts")[:20]
+    )
+    for job in recent_jobs:
+        job.safe_error_summary = sanitize_job_data(job.error_summary)
+    return render(
+        request,
+        "jobs/cnpj_source_detail.html",
+        {
+            "health": health,
+            "datasets": datasets,
+            "recent_jobs": recent_jobs,
+            "storage": storage_status(),
         },
     )
 import uuid
