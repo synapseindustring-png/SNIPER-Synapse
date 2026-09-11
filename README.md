@@ -6,7 +6,9 @@ Radar comercial industrial B2B para descobrir, enriquecer e priorizar indústria
 
 A fundação Django/Docker, autenticação, healthchecks e fila persistida de jobs estão
 operacionais. O pipeline CNPJ possui descoberta do manifesto oficial, leitor seletivo que
-percorre o CSV diretamente dentro do ZIP e filtros aplicados antes da persistência.
+percorre o CSV diretamente dentro do ZIP e filtros aplicados antes da persistência. Os
+candidatos limitados ficam em staging por execução; leitores de Empresas e Simples ignoram
+radicais não selecionados e enriquecem somente a base curada.
 
 A primeira fatia de domínio também está disponível: empresas, CNAEs, fontes, registros
 imutáveis, observações por campo, consultas, execuções, resultados e cobertura. O job

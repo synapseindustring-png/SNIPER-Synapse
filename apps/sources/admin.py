@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import CnpjDataset, CnpjDatasetFile, FieldObservation, Source, SourceRecord
+from .models import (
+    CnpjCandidate,
+    CnpjDataset,
+    CnpjDatasetFile,
+    FieldObservation,
+    Source,
+    SourceRecord,
+)
 
 
 @admin.register(Source)
@@ -36,3 +43,18 @@ class CnpjDatasetAdmin(admin.ModelAdmin):
     list_display = ("reference", "source", "status", "is_current", "discovered_at")
     list_filter = ("status", "is_current", "source")
     inlines = (CnpjDatasetFileInline,)
+
+
+@admin.register(CnpjCandidate)
+class CnpjCandidateAdmin(admin.ModelAdmin):
+    list_display = (
+        "cnpj",
+        "query_run",
+        "company",
+        "company_matched",
+        "simples_matched",
+        "updated_at",
+    )
+    list_filter = ("company_matched", "simples_matched")
+    search_fields = ("cnpj", "cnpj_basico")
+    readonly_fields = tuple(field.name for field in CnpjCandidate._meta.fields)

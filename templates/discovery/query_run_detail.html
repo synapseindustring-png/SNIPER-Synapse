@@ -13,6 +13,17 @@
   <article><span>Correspondências</span><strong>{{ run.records_matched }}</strong></article>
   <article><span>Falhas</span><strong>{{ run.records_failed }}</strong></article>
 </div>
+{% if run.coverage.staged_candidates != None %}
+<article class="panel compact">
+  <div class="panel-head"><h2>Cobertura CNPJ</h2><span>{{ run.coverage.mode }}</span></div>
+  <div class="score-summary">
+    <div><span>Candidatos no staging</span><strong>{{ run.coverage.staged_candidates }}</strong></div>
+    <div><span>Empresas localizadas</span><strong>{{ run.coverage.companies.basics_matched }}</strong><small>{{ run.coverage.companies.rows_scanned }} linhas lidas em {{ run.coverage.companies.sources_processed }} arquivo(s)</small></div>
+    <div><span>Simples localizado</span><strong>{{ run.coverage.simples.basics_matched }}</strong><small>{{ run.coverage.simples.rows_scanned }} linhas lidas em {{ run.coverage.simples.sources_processed }} arquivo(s)</small></div>
+    <div><span>Complementos ausentes</span><strong>{{ run.coverage.companies.basics_missing|add:run.coverage.simples.basics_missing }}</strong><small>Execução parcial quando arquivos foram solicitados</small></div>
+  </div>
+</article>
+{% endif %}
 <article class="panel table-panel">
   <div class="panel-head"><h2>Empresas encontradas</h2><span>Máximo exibido: 500</span></div>
   {% if results %}<table><thead><tr><th>Empresa</th><th>CNPJ</th><th>UF</th><th>CNAE principal</th></tr></thead>

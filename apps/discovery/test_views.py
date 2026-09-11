@@ -111,3 +111,34 @@ class DiscoveryViewsTests(TestCase):
         self.assertRedirects(first, reverse("query-list"))
         self.assertRedirects(second, reverse("query-list"))
         self.assertEqual(Job.objects.filter(type=Job.Type.SYNC_CNPJ_SOURCE).count(), 1)
+
+    def test_run_detail_displays_selective_cnpj_coverage(self):
+        query = self.create_query()
+        run = QueryRun.objects.create(
+            query=query,
+            created_by=self.user,
+            status=QueryRun.Status.PARTIAL,
+            dataset_reference="2026-08",
+            coverage={
+                "mode": "FULL",
+                "staged_candidates": 12,
+                "companies": {
+                    "basics_matched": 11,
+                    "basics_missing": 1,
+                    "rows_scanned": 300,
+                    "sources_processed": 2,
+                },
+                "simples": {
+                    "basics_matched": 12,
+                    "basics_missing": 0,
+                    "rows_scanned": 120,
+                    "sources_processed": 1,
+                },
+            },
+        )
+
+        response = self.client.get(reverse("query-run-detail", args=[run.pk]))
+
+        self.assertContains(response, "Cobertura CNPJ")
+        self.assertContains(response, "Candidatos no staging")
+        self.assertContains(response, "300 linhas lidas em 2 arquivo(s)")

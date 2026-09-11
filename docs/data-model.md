@@ -61,6 +61,13 @@ Registra quais filtros/competências já estão materializados localmente. Permi
 
 Campos: `source`, `dataset_reference`, `scope_json`, `scope_hash`, `record_count`, `completed_at`, `expires_at`.
 
+### `cnpj_candidate`
+
+Staging limitado aos estabelecimentos que passaram pelos filtros de uma execução. Registra
+`query_run`, CNPJ completo e básico, empresa materializada e os payloads seletivos de
+Estabelecimentos, Empresas e Simples. A unicidade `(query_run, cnpj)` torna reprocessamentos
+idempotentes; nenhum registro nacional fora do conjunto candidato é armazenado.
+
 ## Empresa canônica
 
 ### `company`

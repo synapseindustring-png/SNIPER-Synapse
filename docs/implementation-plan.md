@@ -77,8 +77,9 @@ múltiplas partes ainda estão pendentes.
 
 Status: em andamento. O leitor de estabelecimentos em ZIP, os filtros antecipados e
 fixtures pequenas estão implementados e testados. A descoberta WebDAV do manifesto oficial
-e a seleção da competência mais recente estão implementadas; staging e complementação por
-Empresas/Simples continuam pendentes. A integração do ZIP local ou remoto com o job
+e a seleção da competência mais recente estão implementadas. O staging limitado por
+execução e os leitores seletivos de Empresas/Simples já enriquecem somente os CNPJs básicos
+candidatos, preservando payload e proveniência. A integração do ZIP local ou remoto com o job
 `DISCOVER_CNPJ` e a base curada já está implementada. O downloader remoto
 possui allowlist HTTPS, quota, reserva de disco, lock global, validação do ZIP e limpeza.
 O modo de prévia e os limites de persistência impedem consultas abertas ilimitadas.
@@ -225,7 +226,7 @@ O admin consegue responder, com evidências:
 
 ## Ordem técnica imediata
 
-1. persistir candidatos em staging e complementar Empresas/Simples;
+1. persistir candidatos em staging e complementar Empresas/Simples — concluído;
 2. registrar cobertura/cache por competência e escopo;
 3. implementar processamento sequencial das dez partes no modo completo;
 4. adicionar painel detalhado do manifesto e saúde da fonte;

@@ -154,3 +154,48 @@ class CnpjDatasetFile(models.Model):
 
     def __str__(self) -> str:
         return f"{self.dataset.reference} · {self.kind} {self.part_number}"
+
+
+class CnpjCandidate(models.Model):
+    """Bounded staging row for establishments selected by a discovery run."""
+
+    id = models.BigAutoField(primary_key=True)
+    query_run = models.ForeignKey(
+        "discovery.QueryRun",
+        on_delete=models.CASCADE,
+        related_name="cnpj_candidates",
+    )
+    company = models.ForeignKey(
+        "companies.Company",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cnpj_candidates",
+    )
+    cnpj = models.CharField(max_length=14)
+    cnpj_basico = models.CharField(max_length=8)
+    establishment_payload = models.JSONField(default=dict)
+    company_payload = models.JSONField(default=dict, blank=True)
+    simples_payload = models.JSONField(default=dict, blank=True)
+    company_matched = models.BooleanField(default=False)
+    simples_matched = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("cnpj",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("query_run", "cnpj"),
+                name="unique_cnpj_candidate_per_run",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=("query_run", "cnpj_basico"),
+                name="candidate_run_basic_idx",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.cnpj} · {self.query_run_id}"

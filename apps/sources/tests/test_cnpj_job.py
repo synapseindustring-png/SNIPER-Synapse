@@ -1,15 +1,23 @@
 import tempfile
 import zipfile
+from decimal import Decimal
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.utils import timezone
 
 from apps.companies.models import Company
 from apps.discovery.models import DiscoveryQuery, QueryRun
 from apps.jobs.models import Job
 from apps.jobs.services import execute_job
-from apps.sources.models import SourceRecord
+from apps.sources.models import (
+    CnpjCandidate,
+    CnpjDataset,
+    CnpjDatasetFile,
+    Source,
+    SourceRecord,
+)
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "establishments.csv"
@@ -35,6 +43,17 @@ class DiscoverCnpjJobTests(TestCase):
         self.addCleanup(path.unlink, missing_ok=True)
         with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             archive.write(FIXTURE, arcname="K3241.K03200Y0.D60810.ESTABELE")
+        return path
+
+    def make_content_zip(self, content: str, member_name: str) -> Path:
+        temp_root = Path(tempfile.gettempdir()) / "synapse-sniper"
+        temp_root.mkdir(exist_ok=True)
+        temporary = tempfile.NamedTemporaryFile(dir=temp_root, suffix=".zip", delete=False)
+        temporary.close()
+        path = Path(temporary.name)
+        self.addCleanup(path.unlink, missing_ok=True)
+        with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr(member_name, content.encode("latin1"))
         return path
 
     def test_job_persists_only_matching_companies_with_provenance(self):
@@ -64,6 +83,9 @@ class DiscoverCnpjJobTests(TestCase):
         self.assertEqual(Company.objects.count(), 1)
         self.assertEqual(SourceRecord.objects.count(), 1)
         self.assertEqual(self.query_run.results.count(), 1)
+        candidate = CnpjCandidate.objects.get(query_run=self.query_run)
+        self.assertEqual(candidate.company.cnpj, "11111111000191")
+        self.assertEqual(candidate.cnpj_basico, "11111111")
 
     def test_preview_stops_at_limit_and_is_marked_partial(self):
         job = Job.objects.create(
@@ -84,3 +106,126 @@ class DiscoverCnpjJobTests(TestCase):
         self.assertEqual(self.query_run.status, QueryRun.Status.PARTIAL)
         self.assertEqual(self.query_run.records_matched, 1)
         self.assertTrue(self.query_run.coverage["limit_reached"])
+
+    def test_job_enriches_only_staged_candidates_from_company_and_simples_files(self):
+        companies = self.make_content_zip(
+            '99999999;IGNORADA;0000;00;0,00;00;\n'
+            '11111111;ALIMENTOS MINAS SA;2062;49;150000,50;05;\n',
+            "K3241.K03200Y0.D60810.EMPRECSV",
+        )
+        simples = self.make_content_zip(
+            '11111111;S;20200101;;N;;\n'
+            '99999999;N;;20210101;N;;\n',
+            "F.K03200$W.SIMPLES.CSV.D60810",
+        )
+        job = Job.objects.create(
+            type=Job.Type.DISCOVER_CNPJ,
+            payload={
+                "query_run_id": str(self.query_run.id),
+                "dataset_reference": "2026-08",
+                "source_path": str(self.make_zip()),
+                "company_source_paths": [str(companies)],
+                "simples_source_paths": [str(simples)],
+                "mode": "FULL",
+                "filters": {
+                    "registration_statuses": ["02"],
+                    "states": ["MG"],
+                    "cnae_prefixes": ["10"],
+                },
+            },
+        )
+
+        execute_job(job)
+
+        company = Company.objects.get()
+        candidate = CnpjCandidate.objects.get(query_run=self.query_run)
+        self.query_run.refresh_from_db()
+        job.refresh_from_db()
+        self.assertEqual(company.legal_name, "ALIMENTOS MINAS SA")
+        self.assertEqual(company.legal_nature_code, "2062")
+        self.assertEqual(company.size_code, "05")
+        self.assertEqual(company.share_capital, Decimal("150000.50"))
+        self.assertTrue(candidate.company_matched)
+        self.assertTrue(candidate.simples_matched)
+        self.assertEqual(candidate.simples_payload["simples_option"], "S")
+        self.assertEqual(SourceRecord.objects.count(), 3)
+        self.assertEqual(self.query_run.coverage["companies"]["basics_matched"], 1)
+        self.assertEqual(self.query_run.coverage["simples"]["basics_matched"], 1)
+        self.assertEqual(job.records_processed, 7)
+
+    def test_requested_missing_complement_marks_run_partial(self):
+        companies = self.make_content_zip(
+            '99999999;IGNORADA;0000;00;0,00;00;\n',
+            "K3241.K03200Y0.D60810.EMPRECSV",
+        )
+        job = Job.objects.create(
+            type=Job.Type.DISCOVER_CNPJ,
+            payload={
+                "query_run_id": str(self.query_run.id),
+                "dataset_reference": "2026-08",
+                "source_path": str(self.make_zip()),
+                "company_source_paths": [str(companies)],
+                "mode": "FULL",
+                "filters": {
+                    "registration_statuses": ["02"],
+                    "states": ["MG"],
+                    "cnae_prefixes": ["10"],
+                },
+            },
+        )
+
+        execute_job(job)
+
+        self.query_run.refresh_from_db()
+        self.assertEqual(self.query_run.status, QueryRun.Status.PARTIAL)
+        self.assertEqual(self.query_run.coverage["companies"]["basics_missing"], 1)
+        self.assertEqual(self.query_run.coverage["companies"]["sources_processed"], 1)
+
+    def test_preview_rejects_complement_files(self):
+        companies = self.make_content_zip(
+            '11111111;ALIMENTOS MINAS SA;2062;49;150000,50;05;\n',
+            "K3241.K03200Y0.D60810.EMPRECSV",
+        )
+        job = Job.objects.create(
+            type=Job.Type.DISCOVER_CNPJ,
+            payload={
+                "query_run_id": str(self.query_run.id),
+                "dataset_reference": "2026-08",
+                "source_path": str(self.make_zip()),
+                "company_source_paths": [str(companies)],
+                "mode": "PREVIEW",
+                "filters": {"states": ["MG"]},
+            },
+        )
+
+        with self.assertRaisesMessage(ValueError, "only in FULL"):
+            execute_job(job)
+
+    def test_remote_file_must_belong_to_selected_manifest(self):
+        source = Source.objects.get(key="receita-cnpj")
+        dataset = CnpjDataset.objects.create(
+            source=source,
+            reference="2026-08",
+            status=CnpjDataset.Status.READY,
+            discovered_at=timezone.now(),
+        )
+        CnpjDatasetFile.objects.create(
+            dataset=dataset,
+            kind=CnpjDatasetFile.Kind.ESTABLISHMENTS,
+            part_number=0,
+            url="https://receita.example/CNPJ/2026-08/Estabelecimentos0.zip",
+            size_bytes=100,
+        )
+        job = Job.objects.create(
+            type=Job.Type.DISCOVER_CNPJ,
+            payload={
+                "query_run_id": str(self.query_run.id),
+                "dataset_reference": "2026-08",
+                "source_url": "https://receita.example/CNPJ/2026-08/Outro.zip",
+                "mode": "PREVIEW",
+                "filters": {"states": ["MG"]},
+            },
+        )
+
+        with self.assertRaisesMessage(ValueError, "not part"):
+            execute_job(job)

@@ -111,6 +111,14 @@ Sócios não entram no primeiro corte. CNAE secundário será dividido apenas pa
 
 Consultas posteriores usam primeiro a base curada. Se os filtros excederem a cobertura registrada, uma nova varredura seletiva será executada.
 
+O staging é delimitado pelo teto do job e pertence ao `QueryRun`. A complementação aceita
+no máximo dez partes de Empresas e uma de Simples, processadas sequencialmente; cada leitor
+mantém em memória apenas o conjunto de CNPJs básicos candidatos e encerra cedo quando todos
+forem encontrados. Para URLs remotas, o context manager apaga cada ZIP antes de abrir o
+seguinte. Complementos solicitados e não encontrados deixam a execução como parcial.
+O modo `PREVIEW` nunca aceita complementos; URLs remotas precisam constar no manifesto
+`READY` da mesma competência informada pelo job.
+
 ## Contrato conceitual dos adapters
 
 ```python

@@ -7,6 +7,12 @@ from .establishments import (
     CnpjLayoutError,
     CnpjScanStats,
 )
+from .complements import (
+    CnpjCompany,
+    CnpjCompanyReader,
+    CnpjSimples,
+    CnpjSimplesReader,
+)
 
 __all__ = [
     "CnpjEstablishment",
@@ -14,4 +20,8 @@ __all__ = [
     "CnpjEstablishmentReader",
     "CnpjLayoutError",
     "CnpjScanStats",
+    "CnpjCompany",
+    "CnpjCompanyReader",
+    "CnpjSimples",
+    "CnpjSimplesReader",
 ]

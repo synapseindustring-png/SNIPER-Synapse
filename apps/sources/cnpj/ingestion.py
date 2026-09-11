@@ -1,13 +1,15 @@
 import hashlib
 import json
 from dataclasses import asdict, dataclass
+from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 
 from apps.companies.models import Company, CompanyCnae
 from apps.discovery.models import QueryResult, QueryRun
-from apps.sources.models import FieldObservation, Source, SourceRecord
+from apps.sources.models import CnpjCandidate, FieldObservation, Source, SourceRecord
 
+from .complements import CnpjCompany, CnpjSimples
 from .establishments import CnpjEstablishment
 
 
@@ -33,6 +35,153 @@ def _payload(establishment: CnpjEstablishment) -> dict:
 def _payload_hash(payload: dict) -> str:
     canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def stage_establishment(
+    establishment: CnpjEstablishment,
+    *,
+    query_run: QueryRun,
+) -> CnpjCandidate:
+    candidate, _ = CnpjCandidate.objects.update_or_create(
+        query_run=query_run,
+        cnpj=establishment.cnpj,
+        defaults={
+            "cnpj_basico": establishment.cnpj_basico,
+            "establishment_payload": _payload(establishment),
+        },
+    )
+    return candidate
+
+
+def _decimal_from_receita(value: str) -> Decimal | None:
+    normalized = value.strip().replace(".", "").replace(",", ".")
+    if not normalized:
+        return None
+    try:
+        return Decimal(normalized)
+    except InvalidOperation as exc:
+        raise ValueError(f"Invalid share capital: {value!r}") from exc
+
+
+def _persist_complement_record(
+    *,
+    company: Company,
+    source: Source,
+    query_run: QueryRun,
+    observed_at,
+    dataset_reference: str,
+    record_type: str,
+    payload: dict,
+    observations: dict,
+) -> SourceRecord:
+    versioned_payload = {"record_type": record_type, **payload}
+    source_record, created = SourceRecord.objects.get_or_create(
+        source=source,
+        external_id=company.cnpj or "",
+        payload_hash=_payload_hash(versioned_payload),
+        defaults={
+            "company": company,
+            "query_run": query_run,
+            "payload": versioned_payload,
+            "dataset_reference": dataset_reference,
+            "observed_at": observed_at,
+        },
+    )
+    if created:
+        FieldObservation.objects.bulk_create(
+            [
+                FieldObservation(
+                    company=company,
+                    source_record=source_record,
+                    field_name=field_name,
+                    value=value,
+                    normalized_value=str(value),
+                    observed_at=observed_at,
+                )
+                for field_name, value in observations.items()
+                if value not in (None, "")
+            ]
+        )
+    return source_record
+
+
+@transaction.atomic
+def ingest_company_complement(
+    candidate: CnpjCandidate,
+    record: CnpjCompany,
+    *,
+    source: Source,
+    observed_at,
+    dataset_reference: str,
+) -> SourceRecord:
+    if candidate.cnpj_basico != record.cnpj_basico or not candidate.company_id:
+        raise ValueError("Company complement does not match a persisted candidate")
+    company = Company.objects.select_for_update().get(pk=candidate.company_id)
+    share_capital = _decimal_from_receita(record.share_capital)
+    canonical_fields = {
+        "legal_name": record.legal_name,
+        "legal_nature_code": record.legal_nature_code,
+        "size_code": record.size_code,
+        "share_capital": share_capital,
+    }
+    changed_fields = []
+    for field_name, value in canonical_fields.items():
+        if value not in (None, "") and getattr(company, field_name) != value:
+            setattr(company, field_name, value)
+            changed_fields.append(field_name)
+    if changed_fields:
+        company.save(update_fields=(*changed_fields, "updated_at"))
+    observations = {
+        **canonical_fields,
+        "responsible_qualification": record.responsible_qualification,
+        "responsible_federative_entity": record.responsible_federative_entity,
+    }
+    source_record = _persist_complement_record(
+        company=company,
+        source=source,
+        query_run=candidate.query_run,
+        observed_at=observed_at,
+        dataset_reference=dataset_reference,
+        record_type="company",
+        payload=asdict(record),
+        observations={
+            key: str(value) if isinstance(value, Decimal) else value
+            for key, value in observations.items()
+        },
+    )
+    candidate.company_payload = asdict(record)
+    candidate.company_matched = True
+    candidate.save(update_fields=("company_payload", "company_matched", "updated_at"))
+    return source_record
+
+
+@transaction.atomic
+def ingest_simples_complement(
+    candidate: CnpjCandidate,
+    record: CnpjSimples,
+    *,
+    source: Source,
+    observed_at,
+    dataset_reference: str,
+) -> SourceRecord:
+    if candidate.cnpj_basico != record.cnpj_basico or not candidate.company_id:
+        raise ValueError("Simples complement does not match a persisted candidate")
+    company = Company.objects.get(pk=candidate.company_id)
+    payload = asdict(record)
+    source_record = _persist_complement_record(
+        company=company,
+        source=source,
+        query_run=candidate.query_run,
+        observed_at=observed_at,
+        dataset_reference=dataset_reference,
+        record_type="simples",
+        payload=payload,
+        observations={key: value for key, value in payload.items() if key != "cnpj_basico"},
+    )
+    candidate.simples_payload = payload
+    candidate.simples_matched = True
+    candidate.save(update_fields=("simples_payload", "simples_matched", "updated_at"))
+    return source_record
 
 
 @transaction.atomic
