@@ -1,6 +1,16 @@
 from django.contrib import admin
 
-from .models import DiscoveryQuery, QueryResult, QueryRun, SourceCoverage
+from .models import (
+    DiscoveryQuery,
+    GeographicRegion,
+    Initiative,
+    MarketSegment,
+    Municipality,
+    OpportunitySearch,
+    QueryResult,
+    QueryRun,
+    SourceCoverage,
+)
 
 
 @admin.register(DiscoveryQuery)
@@ -34,3 +44,23 @@ class SourceCoverageAdmin(admin.ModelAdmin):
     list_filter = ("source", "dataset_reference")
     search_fields = ("scope_hash",)
     readonly_fields = tuple(field.name for field in SourceCoverage._meta.fields)
+
+
+@admin.register(GeographicRegion)
+class GeographicRegionAdmin(admin.ModelAdmin):
+    list_display = ("name", "state", "kind", "active")
+    list_filter = ("state", "kind", "active")
+    search_fields = ("name", "code")
+    filter_horizontal = ("municipalities",)
+
+
+@admin.register(Municipality)
+class MunicipalityAdmin(admin.ModelAdmin):
+    list_display = ("name", "state", "ibge_code", "intermediate_name")
+    list_filter = ("state",)
+    search_fields = ("name", "ibge_code")
+
+
+admin.site.register(MarketSegment)
+admin.site.register(Initiative)
+admin.site.register(OpportunitySearch)

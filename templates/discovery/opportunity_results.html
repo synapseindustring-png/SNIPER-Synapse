@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Oportunidades · Synapse Sniper{% endblock %}
+{% block heading %}Oportunidades encontradas{% endblock %}
+{% block content %}
+<section class="result-summary">
+  <div>
+    <p class="eyebrow">Busca inteligente</p>
+    <h2>{{ search.name }}</h2>
+    <p>
+      {{ search.get_target_display }} em {{ search.state }} ·
+      {% for segment in search.segments.all %}{{ segment.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+    </p>
+  </div>
+  <div class="result-count"><strong>{{ page.paginator.count }}</strong><span>resultado{{ page.paginator.count|pluralize }}</span></div>
+  <a class="button secondary" href="{% url 'opportunity-create' %}">Nova busca</a>
+</section>
+
+{% if page.object_list %}
+<div class="opportunity-results">
+  {% for company in page.object_list %}
+  <article class="opportunity-card">
+    <div class="opportunity-card-head">
+      <div>
+        <span class="status">{{ company.effective_classification|default:"Em análise" }}</span>
+        <h3>{{ company }}</h3>
+        <p>{{ company.municipality|default:"Município não identificado" }}/{{ company.state }}</p>
+      </div>
+      <div class="priority"><strong>{{ company.effective_priority|default:"—" }}</strong><span>prioridade</span></div>
+    </div>
+    <div class="fit-line"><strong>Por que faz sentido:</strong> atua no segmento escolhido{% if company.latest_best_product %} e tem aderência a {{ company.latest_best_product }}{% endif %}.</div>
+    {% if company.opportunity_signals %}
+    <ul class="evidence-list">
+      {% for signal in company.opportunity_signals|slice:":3" %}
+      <li><span class="evidence-dot"></span><div><strong>{{ signal.title }}</strong>{% if signal.evidence_excerpt %}<small>{{ signal.evidence_excerpt|truncatechars:180 }}</small>{% endif %}</div></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="no-evidence">Sem sinal recente para esta iniciativa; priorização baseada no perfil cadastral e score atual.</p>
+    {% endif %}
+    <a class="table-link" href="{% if search.target == 'PARTNER' %}{% url 'partner-detail' company.pk %}{% else %}{% url 'company-detail' company.pk %}{% endif %}">Ver empresa e evidências</a>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<section class="panel empty-opportunities">
+  <h2>Nenhuma empresa da base local corresponde a essas escolhas</h2>
+  <p>A busca terminou sem iniciar downloads. Tente ampliar a região ou escolher mais segmentos. A atualização de dados continuará sendo uma operação controlada para proteger o espaço em disco.</p>
+  <a class="button" href="{% url 'opportunity-create' %}">Ajustar escolhas</a>
+</section>
+{% endif %}
+
+{% if page.paginator.num_pages > 1 %}
+<nav class="pagination" aria-label="Paginação">
+  {% if page.has_previous %}<a class="button secondary" href="?page={{ page.previous_page_number }}">Anterior</a>{% endif %}
+  <span>Página {{ page.number }} de {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a class="button secondary" href="?page={{ page.next_page_number }}">Próxima</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

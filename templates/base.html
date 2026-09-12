@@ -16,13 +16,13 @@
       </a>
       <nav aria-label="Navegação principal">
         <a{% if request.resolver_match.url_name == 'dashboard' %} class="active"{% endif %} href="{% url 'dashboard' %}">Visão geral</a>
-        <a{% if 'query' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'query-list' %}">Consultas</a>
-        <a{% if 'company' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'company-list' %}">Indústrias</a>
+        <a{% if 'opportunity' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'opportunity-create' %}">Encontrar oportunidades</a>
+        <a{% if 'company' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'company-list' %}">Empresas</a>
         <a{% if 'partner' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'partner-list' %}">Parceiros</a>
-        <span>Sinais</span>
+        {% if request.user.is_staff %}<a{% if 'query' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'query-list' %}">Consultas técnicas</a>{% endif %}
         {% if request.user.is_staff %}<a{% if 'job-review' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'job-review-list' %}">Revisões</a>{% endif %}
-        {% if request.user.is_staff %}<a{% if 'rule' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'rule-set-list' %}">Regras</a>{% else %}<span>Regras</span>{% endif %}
-        {% if request.user.is_staff %}<a{% if request.resolver_match.url_name == 'job-list' or request.resolver_match.url_name == 'job-detail' %} class="active"{% endif %} href="{% url 'job-list' %}">Jobs e fontes</a>{% else %}<span>Jobs</span>{% endif %}
+        {% if request.user.is_staff %}<a{% if 'rule' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'rule-set-list' %}">Regras</a>{% endif %}
+        {% if request.user.is_staff %}<a{% if request.resolver_match.url_name == 'job-list' or request.resolver_match.url_name == 'job-detail' %} class="active"{% endif %} href="{% url 'job-list' %}">Jobs e fontes</a>{% endif %}
       </nav>
       <form action="{% url 'logout' %}" method="post" class="logout-form">
         {% csrf_token %}

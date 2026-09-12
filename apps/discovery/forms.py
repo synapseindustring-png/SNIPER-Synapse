@@ -3,7 +3,106 @@ import re
 from django import forms
 from django.conf import settings
 
-from .models import DiscoveryQuery
+from .models import DiscoveryQuery, GeographicRegion, Initiative, MarketSegment, OpportunitySearch
+
+
+STATE_CHOICES = (
+    ("AC", "Acre"), ("AL", "Alagoas"), ("AP", "Amapá"), ("AM", "Amazonas"),
+    ("BA", "Bahia"), ("CE", "Ceará"), ("DF", "Distrito Federal"),
+    ("ES", "Espírito Santo"), ("GO", "Goiás"), ("MA", "Maranhão"),
+    ("MT", "Mato Grosso"), ("MS", "Mato Grosso do Sul"), ("MG", "Minas Gerais"),
+    ("PA", "Pará"), ("PB", "Paraíba"), ("PR", "Paraná"), ("PE", "Pernambuco"),
+    ("PI", "Piauí"), ("RJ", "Rio de Janeiro"), ("RN", "Rio Grande do Norte"),
+    ("RS", "Rio Grande do Sul"), ("RO", "Rondônia"), ("RR", "Roraima"),
+    ("SC", "Santa Catarina"), ("SP", "São Paulo"), ("SE", "Sergipe"),
+    ("TO", "Tocantins"),
+)
+
+
+class OpportunitySearchForm(forms.Form):
+    target = forms.ChoiceField(
+        label="Quero encontrar",
+        choices=(("INDUSTRY", "Clientes industriais"), ("PARTNER", "Parceiros comerciais")),
+        initial="INDUSTRY",
+    )
+    state = forms.ChoiceField(label="Estado", choices=STATE_CHOICES, initial="MG")
+    regions = forms.ModelMultipleChoiceField(
+        label="Regiões",
+        queryset=GeographicRegion.objects.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text="Deixe sem marcar para pesquisar o estado inteiro.",
+    )
+    segments = forms.ModelMultipleChoiceField(
+        label="Segmentos",
+        queryset=MarketSegment.objects.none(),
+        widget=forms.CheckboxSelectMultiple,
+    )
+    initiative = forms.ModelChoiceField(
+        label="O que você quer identificar",
+        queryset=Initiative.objects.none(),
+        empty_label=None,
+        widget=forms.RadioSelect,
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        target = self.data.get("target") or self.initial.get("target") or "INDUSTRY"
+        state = self.data.get("state") or self.initial.get("state") or "MG"
+        regions = GeographicRegion.objects.filter(state=state, active=True)
+        if GeographicRegion.objects.filter(
+            state=state, kind=GeographicRegion.Kind.COMMERCIAL, active=True
+        ).exists():
+            regions = regions.filter(kind=GeographicRegion.Kind.COMMERCIAL)
+        self.fields["regions"].queryset = regions
+        self.fields["segments"].queryset = MarketSegment.objects.filter(
+            target=target, active=True
+        )
+        self.fields["initiative"].queryset = Initiative.objects.filter(
+            target=target, active=True
+        )
+
+    def clean(self):
+        cleaned = super().clean()
+        target = cleaned.get("target")
+        state = cleaned.get("state")
+        if any(region.state != state for region in cleaned.get("regions", [])):
+            self.add_error("regions", "Escolha somente regiões do estado selecionado.")
+        if any(segment.target != target for segment in cleaned.get("segments", [])):
+            self.add_error("segments", "Escolha segmentos compatíveis com o objetivo.")
+        initiative = cleaned.get("initiative")
+        if initiative and initiative.target != target:
+            self.add_error("initiative", "Escolha uma iniciativa compatível com o objetivo.")
+        return cleaned
+
+    def save(self, user):
+        regions = list(self.cleaned_data["regions"])
+        segments = list(self.cleaned_data["segments"])
+        state = self.cleaned_data["state"]
+        region_label = ", ".join(region.name for region in regions) or f"todo o estado de {state}"
+        cnae_prefixes = sorted({code for segment in segments for code in segment.cnae_prefixes})
+        municipality_codes = sorted({
+            code
+            for region in regions
+            for municipality in region.municipalities.all()
+            for code in municipality.receita_codes
+        })
+        search = OpportunitySearch.objects.create(
+            name=f"{self.cleaned_data['initiative'].name} · {region_label}",
+            target=self.cleaned_data["target"],
+            state=state,
+            initiative=self.cleaned_data["initiative"],
+            technical_filters={
+                "registration_statuses": ["02"],
+                "states": [state],
+                "municipality_codes": municipality_codes,
+                "cnae_prefixes": cnae_prefixes,
+            },
+            created_by=user,
+        )
+        search.regions.set(regions)
+        search.segments.set(segments)
+        return search
 
 
 class DiscoveryQueryForm(forms.Form):

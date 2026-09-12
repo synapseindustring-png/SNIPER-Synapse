@@ -3,11 +3,15 @@ from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
 from apps.companies import views as company_views
+from apps.discovery import views as discovery_views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("login/", auth_views.LoginView.as_view(template_name="registration/login.html"), name="login"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
+    path("opportunities/", discovery_views.opportunity_create, name="opportunity-create"),
+    path("opportunities/options/", discovery_views.opportunity_options, name="opportunity-options"),
+    path("opportunities/<uuid:pk>/", discovery_views.opportunity_results, name="opportunity-results"),
     path("queries/", include("apps.discovery.urls")),
     path("industries/", include("apps.companies.urls")),
     path("partners/", company_views.partner_list, name="partner-list"),

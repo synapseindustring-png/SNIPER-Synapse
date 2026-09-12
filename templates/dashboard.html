@@ -3,11 +3,11 @@
 {% block content %}
 <div class="notice">
   <div>
-    <p class="eyebrow">Base comercial consultável</p>
-    <h2>Pesquise com controle de volume.</h2>
-    <p>As telas usam somente dados já persistidos; downloads ocorrem apenas ao executar uma consulta.</p>
+    <p class="eyebrow">Radar comercial inteligente</p>
+    <h2>Encontre oportunidades com quatro escolhas.</h2>
+    <p>Selecione mercado, estado, região e objetivo. O sistema cuida dos códigos técnicos e consulta primeiro a base local.</p>
   </div>
-  <a class="status-pill" href="{% url 'query-create' %}">Nova consulta</a>
+  <a class="status-pill" href="{% url 'opportunity-create' %}">Encontrar oportunidades</a>
 </div>
 
 <div class="metric-grid" aria-label="Indicadores principais">
@@ -24,7 +24,7 @@
     <table><thead><tr><th>Empresa</th><th>UF</th><th>Consulta</th></tr></thead><tbody>
       {% for result in recent_results %}<tr><td><a class="table-link" href="{% url 'company-detail' result.company.pk %}">{{ result.company }}</a></td><td>{{ result.company.state|default:"—" }}</td><td>{{ result.query_run.query.name }}</td></tr>{% endfor %}
     </tbody></table>
-    {% else %}<div class="empty-state">Execute uma consulta para começar a construir a base curada.</div>{% endif %}
+    {% else %}<div class="empty-state">Faça uma busca de oportunidades para começar.</div>{% endif %}
   </article>
   <article class="panel compact">
     <div class="panel-head"><h2>Saúde do sistema</h2></div>

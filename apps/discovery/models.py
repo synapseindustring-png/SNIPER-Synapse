@@ -171,3 +171,101 @@ class SourceCoverage(models.Model):
                 name="unique_source_dataset_scope",
             )
         ]
+
+
+class Municipality(models.Model):
+    ibge_code = models.CharField(max_length=7, primary_key=True)
+    receita_codes = models.JSONField(default=list)
+    name = models.CharField(max_length=160)
+    state = models.CharField(max_length=2, db_index=True)
+    immediate_code = models.CharField(max_length=8)
+    immediate_name = models.CharField(max_length=160)
+    intermediate_code = models.CharField(max_length=8)
+    intermediate_name = models.CharField(max_length=160)
+
+    class Meta:
+        ordering = ("state", "name")
+
+    def __str__(self) -> str:
+        return f"{self.name}/{self.state}"
+
+
+class GeographicRegion(models.Model):
+    class Kind(models.TextChoices):
+        COMMERCIAL = "COMMERCIAL", "Região comercial"
+        IBGE_INTERMEDIATE = "IBGE_INTERMEDIATE", "Região geográfica intermediária"
+
+    code = models.CharField(max_length=48, primary_key=True)
+    name = models.CharField(max_length=160)
+    state = models.CharField(max_length=2, db_index=True)
+    state_name = models.CharField(max_length=80)
+    kind = models.CharField(max_length=24, choices=Kind.choices)
+    source_version = models.CharField(max_length=80)
+    source_region_codes = models.JSONField(default=list)
+    municipalities = models.ManyToManyField(Municipality, related_name="regions")
+    active = models.BooleanField(default=True)
+    display_order = models.PositiveSmallIntegerField(default=100)
+
+    class Meta:
+        ordering = ("state", "display_order", "name")
+
+    def __str__(self) -> str:
+        return f"{self.name} · {self.state}"
+
+
+class MarketSegment(models.Model):
+    key = models.SlugField(max_length=64, primary_key=True)
+    name = models.CharField(max_length=120)
+    target = models.CharField(max_length=16, choices=DiscoveryQuery.EntityTarget.choices)
+    description = models.CharField(max_length=255, blank=True)
+    cnae_prefixes = models.JSONField(default=list)
+    active = models.BooleanField(default=True)
+    display_order = models.PositiveSmallIntegerField(default=100)
+
+    class Meta:
+        ordering = ("target", "display_order", "name")
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Initiative(models.Model):
+    key = models.SlugField(max_length=64, primary_key=True)
+    name = models.CharField(max_length=120)
+    target = models.CharField(max_length=16, choices=DiscoveryQuery.EntityTarget.choices)
+    product = models.CharField(max_length=24, blank=True)
+    description = models.CharField(max_length=255, blank=True)
+    signal_types = models.JSONField(default=list)
+    active = models.BooleanField(default=True)
+    display_order = models.PositiveSmallIntegerField(default=100)
+
+    class Meta:
+        ordering = ("target", "display_order", "name")
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class OpportunitySearch(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255, editable=False)
+    target = models.CharField(max_length=16, choices=DiscoveryQuery.EntityTarget.choices)
+    state = models.CharField(max_length=2)
+    regions = models.ManyToManyField(GeographicRegion, related_name="opportunity_searches", blank=True)
+    segments = models.ManyToManyField(MarketSegment, related_name="opportunity_searches")
+    initiative = models.ForeignKey(
+        Initiative, on_delete=models.PROTECT, related_name="opportunity_searches"
+    )
+    technical_filters = models.JSONField(default=dict, editable=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="opportunity_searches",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self) -> str:
+        return self.name

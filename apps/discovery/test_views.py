@@ -6,12 +6,12 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.companies.models import Company
+from apps.companies.models import Company, CompanyCnae
 from apps.jobs.models import Job
 from apps.sources.models import CnpjDataset, CnpjDatasetFile, Source
 
 from .coverage import record_source_coverage
-from .models import DiscoveryQuery, QueryResult, QueryRun
+from .models import DiscoveryQuery, GeographicRegion, Initiative, MarketSegment, OpportunitySearch, QueryResult, QueryRun
 
 
 class DiscoveryViewsTests(TestCase):
@@ -30,6 +30,65 @@ class DiscoveryViewsTests(TestCase):
             },
             created_by=self.user,
         )
+
+    def test_opportunity_form_uses_selectable_catalog_and_hides_technical_navigation(self):
+        response = self.client.get(reverse("opportunity-create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Clientes industriais")
+        self.assertContains(response, "Triângulo Mineiro e Alto Paranaíba")
+        self.assertContains(response, "Alimentos e bebidas")
+        self.assertNotContains(response, "Consultas técnicas")
+
+    def test_opportunity_search_translates_choices_and_reads_local_data_only(self):
+        region = GeographicRegion.objects.get(code="MG-TRIANGULO-ALTO-PARANAIBA")
+        municipality = region.municipalities.exclude(receita_codes=[]).first()
+        segment = MarketSegment.objects.get(key="alimentos-bebidas")
+        initiative = Initiative.objects.get(key="eficiencia-producao")
+        company = Company.objects.create(
+            cnpj="12345678000195",
+            legal_name="Alimentos do Triângulo",
+            company_type=Company.Type.INDUSTRY,
+            registration_status=Company.RegistrationStatus.ACTIVE,
+            state="MG",
+            municipality_code=municipality.receita_codes[0],
+        )
+        CompanyCnae.objects.create(
+            company=company,
+            code="1011201",
+            is_primary=True,
+            observed_at=timezone.now(),
+        )
+
+        response = self.client.post(
+            reverse("opportunity-create"),
+            {
+                "target": "INDUSTRY",
+                "state": "MG",
+                "regions": [region.pk],
+                "segments": [segment.pk],
+                "initiative": initiative.pk,
+            },
+        )
+
+        search = OpportunitySearch.objects.get()
+        self.assertRedirects(response, reverse("opportunity-results", args=[search.pk]))
+        self.assertIn(municipality.receita_codes[0], search.technical_filters["municipality_codes"])
+        self.assertEqual(search.technical_filters["cnae_prefixes"], ["10", "11"])
+        results = self.client.get(reverse("opportunity-results", args=[search.pk]))
+        self.assertContains(results, "Alimentos do Triângulo")
+        self.assertFalse(Job.objects.filter(type=Job.Type.DISCOVER_CNPJ).exists())
+
+    def test_opportunity_options_follow_target_and_state(self):
+        response = self.client.get(
+            reverse("opportunity-options"), {"state": "SP", "target": "PARTNER"}
+        )
+
+        data = response.json()
+        self.assertTrue(data["regions"])
+        self.assertTrue(data["segments"])
+        self.assertTrue(data["initiatives"])
+        self.assertTrue(all(item["value"].startswith("IBGE-I-35") for item in data["regions"]))
 
     def create_full_manifest(self):
         source = Source.objects.get(key="receita-cnpj")

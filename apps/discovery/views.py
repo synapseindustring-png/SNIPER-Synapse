@@ -1,17 +1,146 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
-from django.http import Http404
+from django.db.models import CharField, DecimalField, Exists, F, OuterRef, Prefetch, Q, Subquery
+from django.db.models.functions import Coalesce
+from django.core.paginator import Paginator
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 
 from apps.jobs.models import Job
+from apps.companies.models import Company, CompanyCnae
+from apps.scoring.models import ScoreOverride, ScoreSnapshot
+from apps.signals.models import Signal
 
 from .coverage import materialize_cached_run
-from .forms import DiscoveryQueryForm, FullRunForm, PreviewRunForm
-from .models import DiscoveryQuery, QueryRun
+from .forms import DiscoveryQueryForm, FullRunForm, OpportunitySearchForm, PreviewRunForm
+from .models import DiscoveryQuery, GeographicRegion, Initiative, MarketSegment, OpportunitySearch, QueryRun
 from .planning import build_full_plan, build_preview_plan
+
+
+PARTNER_TYPES = (
+    Company.Type.CONSULTANCY,
+    Company.Type.INTEGRATOR,
+    Company.Type.ENGINEERING,
+    Company.Type.SERVICE_PROVIDER,
+)
+
+
+@login_required
+def opportunity_create(request):
+    form = OpportunitySearchForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        with transaction.atomic():
+            search = form.save(request.user)
+        return redirect("opportunity-results", pk=search.pk)
+    recent_searches = OpportunitySearch.objects.filter(created_by=request.user)[:5]
+    return render(
+        request,
+        "discovery/opportunity_form.html",
+        {"form": form, "recent_searches": recent_searches},
+    )
+
+
+@login_required
+def opportunity_options(request):
+    state = request.GET.get("state", "MG").upper()
+    target = request.GET.get("target", DiscoveryQuery.EntityTarget.INDUSTRY)
+    regions = GeographicRegion.objects.filter(state=state, active=True)
+    if regions.filter(kind=GeographicRegion.Kind.COMMERCIAL).exists():
+        regions = regions.filter(kind=GeographicRegion.Kind.COMMERCIAL)
+    return JsonResponse(
+        {
+            "regions": [{"value": item.pk, "label": item.name} for item in regions],
+            "segments": [
+                {"value": item.pk, "label": item.name, "description": item.description}
+                for item in MarketSegment.objects.filter(target=target, active=True)
+            ],
+            "initiatives": [
+                {"value": item.pk, "label": item.name, "description": item.description}
+                for item in Initiative.objects.filter(target=target, active=True)
+            ],
+        }
+    )
+
+
+def _opportunity_companies(search):
+    latest_score = ScoreSnapshot.objects.filter(company=OuterRef("pk")).order_by(
+        "-as_of", "-created_at"
+    )
+    active_override = ScoreOverride.objects.filter(company=OuterRef("pk"), active=True)
+    company_types = (
+        (Company.Type.INDUSTRY,)
+        if search.target == DiscoveryQuery.EntityTarget.INDUSTRY
+        else PARTNER_TYPES
+    )
+    companies = Company.objects.filter(
+        company_type__in=company_types,
+        state=search.state,
+        registration_status=Company.RegistrationStatus.ACTIVE,
+        deleted_at__isnull=True,
+    )
+    filters = search.technical_filters
+    if filters.get("municipality_codes"):
+        companies = companies.filter(municipality_code__in=filters["municipality_codes"])
+    cnae_filter = Q()
+    for prefix in filters.get("cnae_prefixes", []):
+        cnae_filter |= Q(cnaes__code__startswith=prefix)
+    if cnae_filter:
+        companies = companies.filter(cnae_filter)
+    now = timezone.now()
+    relevant_signals = Signal.objects.filter(active=True).filter(
+        Q(expires_at__isnull=True) | Q(expires_at__gt=now)
+    )
+    if search.initiative.signal_types:
+        relevant_signals = relevant_signals.filter(
+            signal_type__in=search.initiative.signal_types
+        )
+    return (
+        companies.annotate(
+            latest_priority=Subquery(latest_score.values("priority")[:1]),
+            latest_classification=Subquery(latest_score.values("calculated_classification")[:1]),
+            latest_best_product=Subquery(latest_score.values("best_product")[:1]),
+            override_priority=Subquery(active_override.values("priority")[:1]),
+            override_classification=Subquery(
+                active_override.exclude(classification="").values("classification")[:1]
+            ),
+            has_override=Exists(active_override),
+        )
+        .annotate(
+            effective_priority=Coalesce(
+                "override_priority", "latest_priority", output_field=DecimalField()
+            ),
+            effective_classification=Coalesce(
+                "override_classification", "latest_classification", output_field=CharField()
+            ),
+        )
+        .prefetch_related(
+            Prefetch(
+                "cnaes", queryset=CompanyCnae.objects.filter(is_primary=True), to_attr="primary_cnaes"
+            ),
+            Prefetch("signals", queryset=relevant_signals.order_by("-observed_at"), to_attr="opportunity_signals"),
+        )
+        .distinct()
+        .order_by(F("effective_priority").desc(nulls_last=True), "trade_name", "legal_name")
+    )
+
+
+@login_required
+def opportunity_results(request, pk):
+    search = get_object_or_404(
+        OpportunitySearch.objects.select_related("initiative").prefetch_related("regions", "segments"),
+        pk=pk,
+        created_by=request.user,
+    )
+    paginator = Paginator(_opportunity_companies(search), 24)
+    page = paginator.get_page(request.GET.get("page"))
+    return render(
+        request,
+        "discovery/opportunity_results.html",
+        {"search": search, "page": page},
+    )
 
 
 @login_required

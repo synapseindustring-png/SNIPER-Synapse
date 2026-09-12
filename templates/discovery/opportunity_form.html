@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Encontrar oportunidades · Synapse Sniper{% endblock %}
+{% block heading %}Encontrar oportunidades{% endblock %}
+{% block content %}
+<section class="opportunity-hero">
+  <p class="eyebrow">Uma busca, quatro escolhas</p>
+  <h2>Onde está a próxima oportunidade?</h2>
+  <p>Escolha o mercado. O Sniper traduz suas escolhas em região, CNAE e sinais de intenção automaticamente.</p>
+</section>
+
+<form method="post" class="opportunity-form" id="opportunity-form" data-options-url="{% url 'opportunity-options' %}">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="form-error">{{ form.non_field_errors }}</div>{% endif %}
+  <section class="choice-step">
+    <div class="step-number">1</div>
+    <div class="step-content">
+      <h3>{{ form.target.label }}</h3>
+      <div class="choice-cards choice-cards-two" data-field="target">
+        {% for choice in form.target %}<label class="choice-card">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}
+      </div>
+      <div class="field-error">{{ form.target.errors }}</div>
+    </div>
+  </section>
+  <section class="choice-step">
+    <div class="step-number">2</div>
+    <div class="step-content location-grid">
+      <div>
+        <h3>{{ form.state.label }}</h3>
+        {{ form.state }}
+        <div class="field-error">{{ form.state.errors }}</div>
+      </div>
+      <div>
+        <h3>{{ form.regions.label }} <small>opcional</small></h3>
+        <div class="choice-chips" id="regions-options">
+          {% for choice in form.regions %}<label>{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}
+        </div>
+        <small>{{ form.regions.help_text }}</small>
+        <div class="field-error">{{ form.regions.errors }}</div>
+      </div>
+    </div>
+  </section>
+  <section class="choice-step">
+    <div class="step-number">3</div>
+    <div class="step-content">
+      <h3>{{ form.segments.label }}</h3>
+      <div class="choice-chips" id="segments-options">
+        {% for choice in form.segments %}<label>{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}
+      </div>
+      <div class="field-error">{{ form.segments.errors }}</div>
+    </div>
+  </section>
+  <section class="choice-step">
+    <div class="step-number">4</div>
+    <div class="step-content">
+      <h3>{{ form.initiative.label }}</h3>
+      <div class="choice-cards" id="initiatives-options">
+        {% for choice in form.initiative %}<label class="choice-card">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}
+      </div>
+      <div class="field-error">{{ form.initiative.errors }}</div>
+    </div>
+  </section>
+  <div class="opportunity-submit">
+    <p>A busca consulta primeiro a base local e não baixa arquivos grandes.</p>
+    <button class="button" type="submit">Mostrar oportunidades</button>
+  </div>
+</form>
+
+{% if recent_searches %}
+<section class="panel compact recent-searches">
+  <div class="panel-head"><h2>Buscas recentes</h2></div>
+  <ul class="record-list">
+    {% for search in recent_searches %}<li><a class="table-link" href="{% url 'opportunity-results' search.pk %}">{{ search.name }}</a><span>{{ search.created_at|date:"d/m/Y H:i" }}</span></li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<script>
+(() => {
+  const form = document.getElementById('opportunity-form');
+  const state = form.querySelector('[name="state"]');
+  const targetInputs = form.querySelectorAll('[name="target"]');
+  const esc = value => String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const checks = (name, items) => items.map(item => `<label><input type="checkbox" name="${name}" value="${esc(item.value)}"><span>${esc(item.label)}</span></label>`).join('');
+  const radios = items => items.map((item, index) => `<label class="choice-card"><input type="radio" name="initiative" value="${esc(item.value)}" ${index === 0 ? 'checked' : ''}><span>${esc(item.label)}</span></label>`).join('');
+  async function refresh() {
+    const target = form.querySelector('[name="target"]:checked').value;
+    const response = await fetch(`${form.dataset.optionsUrl}?state=${encodeURIComponent(state.value)}&target=${encodeURIComponent(target)}`);
+    if (!response.ok) return;
+    const data = await response.json();
+    document.getElementById('regions-options').innerHTML = checks('regions', data.regions);
+    document.getElementById('segments-options').innerHTML = checks('segments', data.segments);
+    document.getElementById('initiatives-options').innerHTML = radios(data.initiatives);
+  }
+  state.addEventListener('change', refresh);
+  targetInputs.forEach(input => input.addEventListener('change', refresh));
+})();
+</script>
+{% endblock %}
