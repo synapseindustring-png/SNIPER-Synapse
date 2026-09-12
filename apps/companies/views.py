@@ -22,13 +22,21 @@ from .forms import CompanyCorrectionForm, CompanyFilterForm
 from .models import Company, CompanyCnae, CompanyCorrection
 
 
-def _company_ranking(parameters):
+PARTNER_TYPES = (
+    Company.Type.CONSULTANCY,
+    Company.Type.INTEGRATOR,
+    Company.Type.ENGINEERING,
+    Company.Type.SERVICE_PROVIDER,
+)
+
+
+def _company_ranking(parameters, *, company_types=(Company.Type.INDUSTRY,), target="industry"):
     latest_score = ScoreSnapshot.objects.filter(company=OuterRef("pk")).order_by(
         "-as_of", "-created_at"
     )
     active_override = ScoreOverride.objects.filter(company=OuterRef("pk"), active=True)
     companies = Company.objects.filter(
-        company_type=Company.Type.INDUSTRY,
+        company_type__in=company_types,
         deleted_at__isnull=True,
     ).annotate(
         latest_priority=Subquery(latest_score.values("priority")[:1]),
@@ -52,7 +60,7 @@ def _company_ranking(parameters):
     ).prefetch_related(
         Prefetch("cnaes", queryset=CompanyCnae.objects.filter(is_primary=True), to_attr="primary_cnaes")
     )
-    form = CompanyFilterForm(parameters)
+    form = CompanyFilterForm(parameters, target=target)
     if form.is_valid():
         filters = form.cleaned_data
         if filters["q"]:
@@ -73,7 +81,7 @@ def _company_ranking(parameters):
             companies = companies.filter(
                 effective_classification=filters["classification"]
             )
-        if filters["best_product"]:
+        if filters.get("best_product"):
             companies = companies.filter(latest_best_product=filters["best_product"])
         if filters["minimum_priority"] is not None:
             companies = companies.filter(effective_priority__gte=filters["minimum_priority"])
@@ -114,7 +122,41 @@ def company_list(request):
     return render(
         request,
         "companies/company_list.html",
-        {"form": form, "page": page, "querystring": query_params.urlencode()},
+        {
+            "form": form,
+            "page": page,
+            "querystring": query_params.urlencode(),
+            "entity_label": "Indústrias",
+            "entity_empty": "Nenhuma indústria corresponde aos filtros.",
+            "list_url": "company-list",
+            "export_url": "company-export",
+            "detail_url": "company-detail",
+        },
+    )
+
+
+@login_required
+def partner_list(request):
+    companies, form = _company_ranking(
+        request.GET, company_types=PARTNER_TYPES, target="partner"
+    )
+    paginator = Paginator(companies, 50)
+    page = paginator.get_page(request.GET.get("page"))
+    query_params = request.GET.copy()
+    query_params.pop("page", None)
+    return render(
+        request,
+        "companies/company_list.html",
+        {
+            "form": form,
+            "page": page,
+            "querystring": query_params.urlencode(),
+            "entity_label": "Parceiros",
+            "entity_empty": "Nenhum parceiro corresponde aos filtros.",
+            "list_url": "partner-list",
+            "export_url": "partner-export",
+            "detail_url": "partner-detail",
+        },
     )
 
 
@@ -130,9 +172,31 @@ def _csv_safe(value):
 
 @login_required
 def company_export(request):
+    return _company_export(request)
+
+
+@login_required
+def partner_export(request):
+    return _company_export(
+        request,
+        company_types=PARTNER_TYPES,
+        target="partner",
+        filename="ranking-parceiros.csv",
+    )
+
+
+def _company_export(
+    request,
+    *,
+    company_types=(Company.Type.INDUSTRY,),
+    target="industry",
+    filename="ranking-industrias.csv",
+):
     parameters = request.GET.copy()
     parameters.pop("page", None)
-    companies, form = _company_ranking(parameters)
+    companies, form = _company_ranking(
+        parameters, company_types=company_types, target=target
+    )
     if not form.is_valid():
         return HttpResponseBadRequest("Filtros inválidos para exportação.")
     writer = csv.writer(_CsvEcho())
@@ -169,15 +233,18 @@ def company_export(request):
             )
 
     response = StreamingHttpResponse(rows(), content_type="text/csv; charset=utf-8")
-    response["Content-Disposition"] = 'attachment; filename="ranking-industrias.csv"'
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
     response["X-Export-Limit"] = "500"
     return response
 
 
 @login_required
 def company_detail(request, pk):
+    companies = Company.objects.filter(deleted_at__isnull=True)
+    if request.resolver_match.url_name == "partner-detail":
+        companies = companies.filter(company_type__in=PARTNER_TYPES)
     company = get_object_or_404(
-        Company.objects.filter(deleted_at__isnull=True).prefetch_related(
+        companies.prefetch_related(
             "cnaes",
             Prefetch(
                 "source_records",
@@ -243,6 +310,7 @@ def company_detail(request, pk):
             "pending_crawl_job": pending_crawl_job,
             "website_pages": website_pages,
             "job_postings": job_postings,
+            "is_partner": company.company_type in PARTNER_TYPES,
         },
     )
 

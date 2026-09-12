@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Indústrias · Synapse Sniper{% endblock %}
-{% block heading %}Indústrias{% endblock %}
+{% block title %}{{ entity_label }} · Synapse Sniper{% endblock %}
+{% block heading %}{{ entity_label }}{% endblock %}
 
 {% block content %}
 <div class="page-actions">
   <p>Ranking sobre dados locais. Filtrar e ordenar não inicia coletas nem downloads.</p>
-  <div class="action-group"><a class="button secondary" href="{% url 'company-export' %}{% if querystring %}?{{ querystring }}{% endif %}">Exportar CSV</a><span class="status-pill">50 por página</span></div>
+  <div class="action-group"><a class="button secondary" href="{% url export_url %}{% if querystring %}?{{ querystring }}{% endif %}">Exportar CSV</a><span class="status-pill">50 por página</span></div>
 </div>
 
 <form method="get" class="panel filter-form ranking-filter">
   {% for field in form %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.errors %}<div class="field-error">{{ field.errors }}</div>{% endif %}</div>{% endfor %}
-  <div class="filter-actions"><button class="button" type="submit">Aplicar ranking</button><a class="button secondary" href="{% url 'company-list' %}">Limpar</a></div>
+  <div class="filter-actions"><button class="button" type="submit">Aplicar ranking</button><a class="button secondary" href="{% url list_url %}">Limpar</a></div>
 </form>
 
 <article class="panel table-panel">
@@ -23,7 +23,7 @@
       {% for company in page %}
       <tr>
         <td><strong>{{ page.start_index|add:forloop.counter0 }}</strong></td>
-        <td><a class="table-link" href="{% url 'company-detail' company.pk %}">{{ company }}</a><br><small>{{ company.cnpj|default:"CNPJ não informado" }}</small></td>
+        <td><a class="table-link" href="{% url detail_url company.pk %}">{{ company }}</a><br><small>{{ company.cnpj|default:"CNPJ não informado" }}</small></td>
         <td>{{ company.municipality|default:"—" }}{% if company.state %}/{{ company.state }}{% endif %}</td>
         <td>{% if company.primary_cnaes %}{{ company.primary_cnaes.0.code }}{% else %}—{% endif %}</td>
         <td>{% if company.effective_priority is not None %}<strong>{{ company.effective_priority|floatformat:0 }}</strong> · {{ company.effective_classification }}{% if company.has_override %}<br><small>Override ativo</small>{% endif %}{% else %}—{% endif %}</td>
@@ -34,7 +34,7 @@
       {% endfor %}
     </tbody>
   </table>
-  {% else %}<div class="empty-state">Nenhuma indústria corresponde aos filtros.</div>{% endif %}
+  {% else %}<div class="empty-state">{{ entity_empty }}</div>{% endif %}
 
   {% if page.paginator.num_pages > 1 %}
   <nav class="pagination" aria-label="Paginação">

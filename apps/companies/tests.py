@@ -84,6 +84,62 @@ class CompanyViewsTests(TestCase):
         self.assertEqual(len(response.context["page"].object_list), 50)
         self.assertContains(response, "Próxima")
 
+    def test_partner_ranking_uses_only_channel_company_types(self):
+        partner = Company.objects.create(
+            legal_name="Integradora Alpha",
+            company_type=Company.Type.INTEGRATOR,
+            state="SP",
+        )
+        Company.objects.create(
+            legal_name="Empresa sem classificação",
+            company_type=Company.Type.OTHER,
+        )
+        partner_rules = RuleSet.objects.get(
+            target=RuleSet.Target.PARTNER, active=True
+        )
+        ScoreSnapshot.objects.create(
+            company=partner,
+            rule_set=partner_rules,
+            as_of=timezone.now(),
+            dimensions={},
+            priority="82",
+            calculated_classification="PRIORITY_PARTNER",
+        )
+
+        response = self.client.get(
+            reverse("partner-list"),
+            {"classification": "PRIORITY_PARTNER"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context["page"].object_list), [partner])
+        self.assertContains(response, "Integradora Alpha")
+        self.assertNotContains(response, "Metalúrgica Horizonte")
+        self.assertNotContains(response, "Empresa sem classificação")
+        self.assertNotContains(response, 'name="best_product"')
+
+    def test_partner_export_and_detail_keep_partner_navigation(self):
+        partner = Company.objects.create(
+            cnpj="99888777000166",
+            legal_name="Engenharia Beta",
+            company_type=Company.Type.ENGINEERING,
+            state="RJ",
+        )
+
+        export = self.client.get(reverse("partner-export"))
+        content = b"".join(export.streaming_content).decode("utf-8")
+        detail = self.client.get(reverse("partner-detail", args=[partner.pk]))
+        wrong_detail = self.client.get(
+            reverse("partner-detail", args=[self.company.pk])
+        )
+
+        self.assertEqual(export.status_code, 200)
+        self.assertIn("ranking-parceiros.csv", export["Content-Disposition"])
+        self.assertIn("Engenharia Beta", content)
+        self.assertNotIn("Metalúrgica Horizonte", content)
+        self.assertContains(detail, "Detalhe do parceiro")
+        self.assertEqual(wrong_detail.status_code, 404)
+
     def test_list_defaults_to_effective_priority_with_unscored_companies_last(self):
         higher = Company.objects.create(
             legal_name="Indústria Prioritária",

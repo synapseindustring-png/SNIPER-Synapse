@@ -61,8 +61,18 @@ class CompanyFilterForm(forms.Form):
         ),
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, target="industry", **kwargs):
         super().__init__(*args, **kwargs)
+        if target == "partner":
+            self.fields["classification"].choices = (
+                ("", "Todas"),
+                ("PRIORITY_PARTNER", "Parceiro prioritário"),
+                ("WARM_PARTNER", "Parceiro warm"),
+                ("WATCH", "Watch"),
+                ("LOW_FIT", "Baixo fit"),
+                ("CONFLICT", "Conflito"),
+            )
+            self.fields.pop("best_product")
         signal_types = (
             SignalRule.objects.filter(active=True)
             .order_by("signal_type")

@@ -13,7 +13,7 @@
 <div class="metric-grid" aria-label="Indicadores principais">
   <article><span>Indústrias</span><strong>{{ industry_count }}</strong><small>Empresas ativas na base local</small></article>
   <article><span>Hot leads</span><strong>{{ hot_lead_count }}</strong><small>Último score calculado</small></article>
-  <article><span>Parceiros</span><strong>{{ partner_count }}</strong><small>Empresas classificadas como canal</small></article>
+  <article><span>Parceiros</span><strong>{{ partner_count }}</strong><small><a class="table-link" href="{% url 'partner-list' %}">Ver ranking de canais</a></small></article>
   <article><span>Novas coletas</span><strong>{{ recent_collection_count }}</strong><small>Registros-fonte nos últimos 30 dias</small></article>
 </div>
 

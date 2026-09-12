@@ -75,6 +75,11 @@ override), classificação, produto, sinal ativo e recência podem ser filtrados
 A exportação respeita o mesmo ranking, transmite no máximo 500 linhas sem arquivo temporário
 e neutraliza fórmulas em células de planilha.
 
+Parceiros possuem ranking local próprio para consultorias, integradores, engenharias e
+prestadores de serviço, com classificações de canal/conflito, os mesmos limites de paginação
+e exportação e acesso ao score explicável no detalhe. Empresas industriais ou ainda marcadas
+como `OTHER` não entram nessa visão.
+
 Decisões centrais:
 
 - descoberta iniciada por consultas, sem upload manual de listas;
