@@ -36,6 +36,8 @@ class DiscoveryViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Clientes industriais")
+        self.assertContains(response, 'type="radio" name="target" value="INDUSTRY"')
+        self.assertContains(response, 'type="radio" name="target" value="PARTNER"')
         self.assertContains(response, "Triângulo Mineiro e Alto Paranaíba")
         self.assertContains(response, "Alimentos e bebidas")
         self.assertNotContains(response, "Consultas técnicas")

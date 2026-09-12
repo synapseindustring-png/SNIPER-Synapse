@@ -10,19 +10,27 @@
 <body>
   <div class="app-shell">
     <aside class="sidebar">
-      <a class="brand" href="{% url 'dashboard' %}">
+      <a class="brand" href="{% url 'opportunity-create' %}">
         <span class="brand-mark" aria-hidden="true"></span>
         <span><strong>Synapse</strong><small>Sniper</small></span>
       </a>
       <nav aria-label="Navegação principal">
-        <a{% if request.resolver_match.url_name == 'dashboard' %} class="active"{% endif %} href="{% url 'dashboard' %}">Visão geral</a>
         <a{% if 'opportunity' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'opportunity-create' %}">Encontrar oportunidades</a>
+        <details class="secondary-navigation">
+          <summary>Base de empresas</summary>
         <a{% if 'company' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'company-list' %}">Empresas</a>
         <a{% if 'partner' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'partner-list' %}">Parceiros</a>
+        </details>
+        {% if request.user.is_staff %}
+        <details class="secondary-navigation">
+          <summary>Administração</summary>
+          <a href="{% url 'dashboard' %}">Visão geral</a>
         {% if request.user.is_staff %}<a{% if 'query' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'query-list' %}">Consultas técnicas</a>{% endif %}
         {% if request.user.is_staff %}<a{% if 'job-review' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'job-review-list' %}">Revisões</a>{% endif %}
         {% if request.user.is_staff %}<a{% if 'rule' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'rule-set-list' %}">Regras</a>{% endif %}
         {% if request.user.is_staff %}<a{% if request.resolver_match.url_name == 'job-list' or request.resolver_match.url_name == 'job-detail' %} class="active"{% endif %} href="{% url 'job-list' %}">Jobs e fontes</a>{% endif %}
+        </details>
+        {% endif %}
       </nav>
       <form action="{% url 'logout' %}" method="post" class="logout-form">
         {% csrf_token %}

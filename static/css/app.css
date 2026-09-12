@@ -28,6 +28,9 @@ button, input, select, textarea { font: inherit; }
 .sidebar nav { margin-top: 48px; display: grid; gap: 8px; }
 .sidebar nav a, .sidebar nav span { padding: 11px 12px; border-radius: 8px; color: #aebbb6; }
 .sidebar nav .active { color: var(--deep); background: var(--accent); font-weight: 700; }
+.secondary-navigation summary { padding: 11px 12px; cursor: pointer; color: #aebbb6; }
+.secondary-navigation a { display: block; margin: 4px 0 4px 12px; }
+.choice-card input:focus-visible + span, .choice-chips input:focus-visible + span { outline: 3px solid var(--accent-dark); outline-offset: 3px; }
 .logout-form { margin-top: auto; }
 .logout-form button { width: 100%; border: 1px solid #35514c; color: #bdc7c3; background: transparent; padding: 10px; border-radius: 8px; cursor: pointer; }
 

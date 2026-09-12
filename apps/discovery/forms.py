@@ -24,6 +24,7 @@ class OpportunitySearchForm(forms.Form):
         label="Quero encontrar",
         choices=(("INDUSTRY", "Clientes industriais"), ("PARTNER", "Parceiros comerciais")),
         initial="INDUSTRY",
+        widget=forms.RadioSelect,
     )
     state = forms.ChoiceField(label="Estado", choices=STATE_CHOICES, initial="MG")
     regions = forms.ModelMultipleChoiceField(

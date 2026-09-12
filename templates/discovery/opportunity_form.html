@@ -1,11 +1,12 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Encontrar oportunidades · Synapse Sniper{% endblock %}
 {% block heading %}Encontrar oportunidades{% endblock %}
 {% block content %}
 <section class="opportunity-hero">
   <p class="eyebrow">Uma busca, quatro escolhas</p>
   <h2>Onde está a próxima oportunidade?</h2>
-  <p>Escolha o mercado. O Sniper traduz suas escolhas em região, CNAE e sinais de intenção automaticamente.</p>
+  <p>Escolha onde e com quem você quer fazer negócios, e o que procura identificar.</p>
 </section>
 
 <form method="post" class="opportunity-form" id="opportunity-form" data-options-url="{% url 'opportunity-options' %}">
@@ -60,6 +61,7 @@
     </div>
   </section>
   <div class="opportunity-submit">
+    <p id="options-status" role="status" aria-live="polite"></p>
     <p>A busca consulta primeiro a base local e não baixa arquivos grandes.</p>
     <button class="button" type="submit">Mostrar oportunidades</button>
   </div>
@@ -74,25 +76,5 @@
 </section>
 {% endif %}
 
-<script>
-(() => {
-  const form = document.getElementById('opportunity-form');
-  const state = form.querySelector('[name="state"]');
-  const targetInputs = form.querySelectorAll('[name="target"]');
-  const esc = value => String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-  const checks = (name, items) => items.map(item => `<label><input type="checkbox" name="${name}" value="${esc(item.value)}"><span>${esc(item.label)}</span></label>`).join('');
-  const radios = items => items.map((item, index) => `<label class="choice-card"><input type="radio" name="initiative" value="${esc(item.value)}" ${index === 0 ? 'checked' : ''}><span>${esc(item.label)}</span></label>`).join('');
-  async function refresh() {
-    const target = form.querySelector('[name="target"]:checked').value;
-    const response = await fetch(`${form.dataset.optionsUrl}?state=${encodeURIComponent(state.value)}&target=${encodeURIComponent(target)}`);
-    if (!response.ok) return;
-    const data = await response.json();
-    document.getElementById('regions-options').innerHTML = checks('regions', data.regions);
-    document.getElementById('segments-options').innerHTML = checks('segments', data.segments);
-    document.getElementById('initiatives-options').innerHTML = radios(data.initiatives);
-  }
-  state.addEventListener('change', refresh);
-  targetInputs.forEach(input => input.addEventListener('change', refresh));
-})();
-</script>
+<script src="{% static 'js/opportunities.js' %}" defer></script>
 {% endblock %}
