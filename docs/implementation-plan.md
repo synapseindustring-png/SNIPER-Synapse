@@ -209,7 +209,8 @@ classificação, produto, sinal e recência, ordenação e CSV limitado. O detal
 revisões de vagas já estão operacionais. O painel staff de jobs/fontes cobre fila, tentativas,
 falhas sanitizadas, atividade das fontes e capacidade de disco. O ranking de parceiros
 também possui visão, filtros, paginação, CSV e detalhe com contribuições de canal/conflito;
-gestão visual de regras e as demais ações operacionais auditadas permanecem pendentes.
+a gestão visual de regras permite clonar, editar e validar rascunhos, simular sem persistir
+e publicar versões imutáveis. As demais ações operacionais auditadas permanecem pendentes.
 
 ### Entregáveis
 
@@ -241,7 +242,8 @@ O admin consegue responder, com evidências:
 5. adicionar heartbeat persistente e painel operacional do worker — concluído;
 6. permitir correções administrativas preservando a proveniência — concluído.
 7. concluir o ranking de parceiros e suas evidências de canal/conflito — concluído.
-8. implementar gestão visual versionada das regras de scoring.
+8. implementar gestão visual versionada das regras de scoring — concluído.
+9. consolidar o runbook de produção, backup e restauração testada.
 
 ## Dependências candidatas
 

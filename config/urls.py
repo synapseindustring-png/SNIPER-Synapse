@@ -15,5 +15,6 @@ urlpatterns = [
     path("partners/<uuid:pk>/", company_views.company_detail, name="partner-detail"),
     path("reviews/jobs/", include("apps.crawler.urls")),
     path("operations/jobs/", include("apps.jobs.urls")),
+    path("rules/", include("apps.scoring.urls")),
     path("", include("apps.core.urls")),
 ]

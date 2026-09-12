@@ -21,7 +21,7 @@
         <a{% if 'partner' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'partner-list' %}">Parceiros</a>
         <span>Sinais</span>
         {% if request.user.is_staff %}<a{% if 'job-review' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'job-review-list' %}">Revisões</a>{% endif %}
-        <span>Regras</span>
+        {% if request.user.is_staff %}<a{% if 'rule' in request.resolver_match.url_name %} class="active"{% endif %} href="{% url 'rule-set-list' %}">Regras</a>{% else %}<span>Regras</span>{% endif %}
         {% if request.user.is_staff %}<a{% if request.resolver_match.url_name == 'job-list' or request.resolver_match.url_name == 'job-detail' %} class="active"{% endif %} href="{% url 'job-list' %}">Jobs e fontes</a>{% else %}<span>Jobs</span>{% endif %}
       </nav>
       <form action="{% url 'logout' %}" method="post" class="logout-form">

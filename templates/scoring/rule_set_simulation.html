@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}Simulação v{{ rule_set.version }} · Synapse Sniper{% endblock %}
+{% block heading %}Simulação de regras{% endblock %}
+
+{% block content %}
+{% for message in messages %}<div class="flash {{ message.tags }}">{{ message }}</div>{% endfor %}
+{% if form.errors %}<div class="flash error">{{ form.errors }}</div>{% endif %}
+{% if simulation %}<article class="panel score-panel"><div class="panel-head"><h2>Resultado não persistido</h2><span>v{{ rule_set.version }}</span></div><div class="score-summary"><div><span>Prioridade</span><strong>{{ simulation.priority|floatformat:0 }}</strong></div><div><span>Classificação</span><strong>{{ simulation.classification }}</strong></div><div><span>Melhor produto</span><strong>{{ simulation.best_product|default:"—" }}</strong></div><div><span>Contribuições</span><strong>{{ simulation.contributions|length }}</strong></div></div><table><thead><tr><th>Regra</th><th>Dimensão</th><th>Base</th><th>Efetivo</th></tr></thead><tbody>{% for contribution in simulation.contributions %}<tr><td>{{ contribution.rule.name }}</td><td>{{ contribution.dimension }}</td><td>{{ contribution.base_points }}</td><td>{{ contribution.effective_points }}</td></tr>{% endfor %}</tbody></table></article>{% endif %}
+<a class="button secondary" href="{% url 'rule-set-detail' rule_set.pk %}">Voltar às regras</a>
+{% endblock %}

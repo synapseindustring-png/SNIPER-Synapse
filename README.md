@@ -35,7 +35,10 @@ horário e uma nova evidência manual, enquanto as observações de origem são 
 O motor de scoring determinístico já possui conjuntos de regras versionados, fórmulas,
 thresholds, decay, snapshots imutáveis, contribuições explicáveis e overrides. O detalhe da
 empresa permite solicitar o cálculo ao worker e exibe o score sem acessar fontes externas.
-Os pesos seed estão identificados como hipóteses até a validação comercial.
+Os pesos seed estão identificados como hipóteses até a validação comercial. Usuários staff
+podem clonar a versão ativa para um rascunho, editar regras, validar a configuração, simular
+em uma empresa sem persistir o resultado e publicar atomicamente. A versão ativa anterior
+é aposentada, mas continua ligada aos snapshots históricos.
 
 O detector de sinais percorre somente registros-fonte já armazenados, aplica regras de
 palavras-chave com limites de palavra, preserva o trecho de evidência e agenda o recálculo

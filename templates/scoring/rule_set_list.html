@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Regras · Synapse Sniper{% endblock %}
+{% block heading %}Regras de scoring{% endblock %}
+
+{% block content %}
+{% for message in messages %}<div class="flash {{ message.tags }}">{{ message }}</div>{% endfor %}
+<div class="page-actions"><p>Versões publicadas são imutáveis. Toda alteração começa em um novo rascunho.</p><div class="action-group"><form method="post" action="{% url 'rule-set-clone' 'INDUSTRY' %}">{% csrf_token %}<button class="button" type="submit">Nova versão Indústrias</button></form><form method="post" action="{% url 'rule-set-clone' 'PARTNER' %}">{% csrf_token %}<button class="button secondary" type="submit">Nova versão Parceiros</button></form></div></div>
+<article class="panel table-panel">
+  <div class="panel-head"><h2>Histórico de versões</h2><span>{{ rule_sets|length }} conjunto{{ rule_sets|length|pluralize }}</span></div>
+  <table><thead><tr><th>Público</th><th>Versão</th><th>Nome</th><th>Estado</th><th>Regras</th><th>Publicada</th></tr></thead><tbody>
+  {% for item in rule_sets %}<tr><td>{{ item.get_target_display }}</td><td><a class="table-link" href="{% url 'rule-set-detail' item.pk %}">v{{ item.version }}</a></td><td>{{ item.name }}</td><td><span class="status{% if item.active %} status-succeeded{% endif %}">{{ item.get_status_display }}{% if item.active %} · ativa{% endif %}</span></td><td>{{ item.rules.all|length }}</td><td>{{ item.published_at|date:"d/m/Y H:i"|default:"—" }}</td></tr>{% endfor %}
+  </tbody></table>
+</article>
+{% endblock %}

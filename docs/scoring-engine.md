@@ -178,6 +178,12 @@ Antes da publicação, o admin verá:
 - simulação em empresas selecionadas;
 - diferenças em relação à versão ativa.
 
+O fluxo staff implementado cria no máximo um rascunho por público a partir da versão ativa.
+Fórmula, thresholds, desempate, dimensões, condições, regex e curvas de decay são validados
+antes da publicação. A simulação usa uma empresa compatível e reverte a transação, portanto
+não cria `ScoreSnapshot` nem altera o ranking. Ao publicar, a versão anterior é marcada como
+`RETIRED` e a nova passa a ser a única ativa; snapshots históricos mantêm sua regra original.
+
 ## Override
 
 O score e temperatura calculados nunca são substituídos no snapshot. Overrides ficam em entidade separada e a UI mostra ambos.
@@ -206,4 +212,3 @@ Nenhuma seed deve afirmar precisão comercial antes de validação com casos rea
 - versão antiga continua explicável após nova publicação;
 - override sobrevive a recálculo;
 - soma exibida corresponde ao valor persistido.
-

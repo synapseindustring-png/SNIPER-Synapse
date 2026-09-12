@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Regras v{{ rule_set.version }} · Synapse Sniper{% endblock %}
+{% block heading %}{{ rule_set.get_target_display }} · regras v{{ rule_set.version }}{% endblock %}
+
+{% block content %}
+{% for message in messages %}<div class="flash {{ message.tags }}">{{ message }}</div>{% endfor %}
+<div class="page-actions"><p>{{ rule_set.get_status_display }}{% if rule_set.active %} · versão ativa{% endif %}. Publicações antigas e seus snapshots permanecem imutáveis.</p><div class="action-group">{% if editable %}<a class="button secondary" href="{% url 'scoring-rule-create' rule_set.pk %}">Adicionar regra</a><form method="post" action="{% url 'rule-set-publish' rule_set.pk %}">{% csrf_token %}<button class="button" type="submit"{% if validation_errors %} disabled{% endif %}>Publicar versão</button></form>{% endif %}<a class="button secondary" href="{% url 'rule-set-list' %}">Voltar</a></div></div>
+
+{% if validation_errors %}<div class="flash error"><strong>Publicação bloqueada:</strong><ul>{% for error in validation_errors %}<li>{{ error }}</li>{% endfor %}</ul></div>{% elif editable %}<div class="flash">Configuração válida para publicação.</div>{% endif %}
+
+{% if editable and baseline %}<article class="panel compact"><div class="panel-head"><h2>Diferenças em relação à v{{ baseline.version }}</h2><span>{% if comparison.configuration_changed %}Configuração alterada{% else %}Configuração geral igual{% endif %}</span></div><dl class="facts"><div><dt>Regras adicionadas</dt><dd>{{ comparison.added|join:", "|default:"—" }}</dd></div><div><dt>Regras alteradas</dt><dd>{{ comparison.changed|join:", "|default:"—" }}</dd></div><div><dt>Regras removidas</dt><dd>{{ comparison.removed|join:", "|default:"—" }}</dd></div></dl></article>{% endif %}
+
+{% if editable %}<form method="post" class="panel data-form">{% csrf_token %}{% if form.non_field_errors %}<div class="form-error">{{ form.non_field_errors }}</div>{% endif %}{% for field in form %}<div class="field">{{ field.label_tag }}{{ field }}{% if field.errors %}<div class="field-error">{{ field.errors }}</div>{% endif %}</div>{% endfor %}<div class="form-actions"><button class="button" type="submit">Salvar configuração</button></div></form>
+{% else %}<article class="panel compact"><div class="panel-head"><h2>Configuração publicada</h2><span>{{ rule_set.published_at|date:"d/m/Y H:i" }}</span></div><dl class="facts"><div><dt>Fórmula</dt><dd><code>{{ rule_set.formula }}</code></dd></div><div><dt>Thresholds</dt><dd><code>{{ rule_set.thresholds }}</code></dd></div><div><dt>Desempate</dt><dd><code>{{ rule_set.tie_order|default:"—" }}</code></dd></div></dl></article>{% endif %}
+
+<article class="panel table-panel"><div class="panel-head"><h2>Regras</h2><span>{{ rule_set.rules.all|length }} regra{{ rule_set.rules.all|length|pluralize }}</span></div>{% if rule_set.rules.all %}<table><thead><tr><th>Ordem</th><th>Regra</th><th>Dimensão</th><th>Pontos</th><th>Condição</th><th>Estado</th><th></th></tr></thead><tbody>{% for rule in rule_set.rules.all %}<tr><td>{{ rule.order }}</td><td><strong>{{ rule.name }}</strong><br><small>{{ rule.key }}</small></td><td>{{ rule.get_dimension_display }}</td><td>{{ rule.points }}</td><td><code>{{ rule.condition }}</code></td><td>{% if rule.active %}Ativa{% else %}Inativa{% endif %}</td><td>{% if editable %}<a class="table-link" href="{% url 'scoring-rule-edit' rule_set.pk rule.pk %}">Editar</a>{% endif %}</td></tr>{% endfor %}</tbody></table>{% else %}<div class="empty-state small">Nenhuma regra nesta versão.</div>{% endif %}</article>
+
+<article class="panel compact"><div class="panel-head"><h2>Simular sem persistir</h2><span>Não altera scores existentes</span></div><form method="post" action="{% url 'rule-set-simulate' rule_set.pk %}" class="inline-form">{% csrf_token %}{{ simulation_form.company.label_tag }}{{ simulation_form.company }}<button class="button secondary" type="submit">Simular</button></form></article>
+{% endblock %}

@@ -137,11 +137,22 @@ def _clamp(value: Decimal) -> Decimal:
 
 
 @transaction.atomic
-def calculate_score(company: Company, *, as_of, rule_set: RuleSet | None = None) -> ScoreSnapshot:
+def calculate_score(
+    company: Company,
+    *,
+    as_of,
+    rule_set: RuleSet | None = None,
+    allow_draft: bool = False,
+) -> ScoreSnapshot:
     target = RuleSet.Target.INDUSTRY if company.company_type == Company.Type.INDUSTRY else RuleSet.Target.PARTNER
     if rule_set is None:
         rule_set = RuleSet.objects.get(target=target, active=True, status=RuleSet.Status.PUBLISHED)
-    if rule_set.target != target or rule_set.status != RuleSet.Status.PUBLISHED:
+    allowed_status = (
+        rule_set.status == RuleSet.Status.PUBLISHED
+        or allow_draft
+        and rule_set.status == RuleSet.Status.DRAFT
+    )
+    if rule_set.target != target or not allowed_status:
         raise ScoringConfigurationError("Conjunto de regras incompatível ou não publicado.")
 
     cnaes = list(company.cnaes.order_by("-is_primary", "code").values_list("code", flat=True))
