@@ -70,6 +70,12 @@ jobs orquestra casos de uso, mas não contém regras de domínio
 
 Adapters nunca chamam o motor de score diretamente. Eles devolvem DTOs normalizados; serviços da aplicação persistem observações, geram sinais e enfileiram o próximo passo.
 
+Correções administrativas seguem um caso de uso separado dos adapters e são restritas a
+staff. Cada campo permitido produz um evento `CompanyCorrection`, um `SourceRecord` manual
+imutável e uma observação selecionada; a observação anterior deixa de ser atual, mas nunca
+é removida. A alteração canônica e a auditoria são atômicas, e o score é reenfileirado com
+a nova versão dos dados.
+
 ## Pipeline de descoberta
 
 ```text

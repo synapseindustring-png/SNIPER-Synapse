@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Company, CompanyCnae
+from .models import Company, CompanyCnae, CompanyCorrection
 
 
 class CompanyCnaeInline(admin.TabularInline):
@@ -23,3 +23,25 @@ class CompanyAdmin(admin.ModelAdmin):
     search_fields = ("cnpj", "legal_name", "trade_name", "website_domain")
     readonly_fields = ("id", "created_at", "updated_at", "last_enriched_at", "deleted_at")
     inlines = (CompanyCnaeInline,)
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj:
+            return tuple(field.name for field in self.model._meta.fields)
+        return self.readonly_fields
+
+
+@admin.register(CompanyCorrection)
+class CompanyCorrectionAdmin(admin.ModelAdmin):
+    list_display = ("company", "field_name", "corrected_by", "created_at")
+    list_filter = ("field_name", "created_at")
+    search_fields = ("company__cnpj", "company__legal_name", "justification")
+    readonly_fields = tuple(field.name for field in CompanyCorrection._meta.fields)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

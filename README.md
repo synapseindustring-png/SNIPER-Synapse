@@ -28,7 +28,9 @@ escopo são reutilizadas entre consultas equivalentes, sem novo job ou download.
 A interface de Indústrias lista somente a base curada local, com busca, filtros e paginação
 de 50 registros. Abrir essa lista ou o detalhe de uma empresa não executa coleta nem baixa
 arquivos. O detalhe expõe CNAEs, registros-fonte e observações por campo, e o dashboard usa
-contagens reais do banco.
+contagens reais do banco. Usuários staff podem corrigir campos permitidos sem alterar o
+CNPJ: cada campo gera um registro de correção com antes/depois, justificativa, responsável,
+horário e uma nova evidência manual, enquanto as observações de origem são preservadas.
 
 O motor de scoring determinístico já possui conjuntos de regras versionados, fórmulas,
 thresholds, decay, snapshots imutáveis, contribuições explicáveis e overrides. O detalhe da
@@ -81,6 +83,7 @@ Decisões centrais:
 - Explain Score obrigatório;
 - Django server-rendered, PostgreSQL, Docker e Coolify;
 - adapters substituíveis para todas as fontes;
+- correções canônicas auditadas e sem sobrescrever a evidência de origem;
 - nenhuma decisão comercial por LLM ou machine learning.
 
 ## Fluxo alvo

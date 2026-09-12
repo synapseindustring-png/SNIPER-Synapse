@@ -6,12 +6,13 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.sources.models import Source, SourceRecord
+from apps.sources.models import FieldObservation, Source, SourceRecord
 from apps.jobs.models import Job
 from apps.scoring.models import RuleSet, ScoreOverride, ScoreSnapshot
 from apps.signals.models import Signal
 
-from .models import Company, CompanyCnae
+from .corrections import correct_company
+from .models import Company, CompanyCnae, CompanyCorrection
 
 
 class CompanyViewsTests(TestCase):
@@ -264,3 +265,151 @@ class CompanyViewsTests(TestCase):
         self.client.post(reverse("company-crawl-website", args=[self.company.pk]))
         self.client.post(reverse("company-crawl-website", args=[self.company.pk]))
         self.assertEqual(Job.objects.filter(type=Job.Type.CRAWL_WEBSITE).count(), 1)
+
+
+class CompanyCorrectionTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="operator", password="secret", is_staff=True
+        )
+        self.company = Company.objects.create(
+            cnpj="12345678000199",
+            legal_name="Nome obtido na fonte",
+            company_type=Company.Type.INDUSTRY,
+            registration_status=Company.RegistrationStatus.ACTIVE,
+            state="MG",
+        )
+        source = Source.objects.create(key="original", name="Fonte original")
+        self.original_record = SourceRecord.objects.create(
+            source=source,
+            external_id=self.company.cnpj,
+            company=self.company,
+            payload={"legal_name": self.company.legal_name},
+            payload_hash="c" * 64,
+            observed_at=timezone.now(),
+        )
+        self.original_observation = FieldObservation.objects.create(
+            company=self.company,
+            source_record=self.original_record,
+            field_name="legal_name",
+            value=self.company.legal_name,
+            normalized_value=self.company.legal_name,
+            observed_at=timezone.now(),
+            selected_at=timezone.now(),
+            is_current=True,
+        )
+
+    def form_data(self, **changes):
+        data = {
+            "legal_name": self.company.legal_name,
+            "trade_name": self.company.trade_name,
+            "company_type": self.company.company_type,
+            "registration_status": self.company.registration_status,
+            "size_code": self.company.size_code,
+            "legal_nature_code": self.company.legal_nature_code,
+            "share_capital": "",
+            "opened_on": "",
+            "segment": self.company.segment,
+            "street_type": self.company.street_type,
+            "street": self.company.street,
+            "number": self.company.number,
+            "complement": self.company.complement,
+            "district": self.company.district,
+            "municipality": self.company.municipality,
+            "municipality_code": self.company.municipality_code,
+            "state": self.company.state,
+            "postal_code": self.company.postal_code,
+            "phone": self.company.phone,
+            "email": self.company.email,
+            "website": self.company.website,
+            "commercial_status": self.company.commercial_status,
+            "justification": "Conferência documental realizada pela operação.",
+        }
+        data.update(changes)
+        return data
+
+    def test_service_preserves_original_observation_and_creates_manual_evidence(self):
+        company, corrections = correct_company(
+            company=self.company,
+            changes={
+                "legal_name": "Nome corrigido",
+                "website": "https://www.example.com/contato",
+            },
+            justification="Conferência documental realizada pela operação.",
+            user=self.user,
+        )
+
+        self.assertEqual(company.legal_name, "Nome corrigido")
+        self.assertEqual(company.website_domain, "example.com")
+        self.assertEqual(len(corrections), 2)
+        self.original_observation.refresh_from_db()
+        self.assertFalse(self.original_observation.is_current)
+        current = FieldObservation.objects.get(
+            company=company, field_name="legal_name", is_current=True
+        )
+        self.assertEqual(current.value, "Nome corrigido")
+        self.assertEqual(current.source_record.source.key, "manual-correction")
+        correction = CompanyCorrection.objects.get(field_name="legal_name")
+        self.assertEqual(correction.old_value, "Nome obtido na fonte")
+        self.assertEqual(correction.new_value, "Nome corrigido")
+        self.assertEqual(correction.corrected_by, self.user)
+        self.assertEqual(correction.source_record, current.source_record)
+        self.assertTrue(SourceRecord.objects.filter(pk=self.original_record.pk).exists())
+
+    def test_correction_view_is_staff_only_and_cnpj_is_not_editable(self):
+        regular_user = get_user_model().objects.create_user(
+            username="sales", password="secret"
+        )
+        self.client.force_login(regular_user)
+        url = reverse("company-correction", args=[self.company.pk])
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+        self.client.force_login(self.user)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'name="cnpj"')
+
+        with self.assertRaises(PermissionError):
+            correct_company(
+                company=self.company,
+                changes={"legal_name": "Tentativa sem permissão"},
+                justification="Tentativa realizada por usuário comum.",
+                user=regular_user,
+            )
+        self.assertEqual(CompanyCorrection.objects.count(), 0)
+
+    def test_valid_correction_updates_company_audits_and_enqueues_score(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("company-correction", args=[self.company.pk]),
+            self.form_data(legal_name="Nome revisado", state="sp"),
+        )
+
+        self.assertRedirects(
+            response, reverse("company-detail", args=[self.company.pk])
+        )
+        self.company.refresh_from_db()
+        self.assertEqual(self.company.legal_name, "Nome revisado")
+        self.assertEqual(self.company.state, "SP")
+        self.assertEqual(CompanyCorrection.objects.count(), 2)
+        self.assertEqual(Job.objects.filter(type=Job.Type.CALCULATE_SCORE).count(), 1)
+        detail = self.client.get(reverse("company-detail", args=[self.company.pk]))
+        self.assertContains(detail, "Correções administrativas")
+        self.assertContains(detail, "Conferência documental")
+        self.assertContains(detail, "operator")
+
+    def test_unchanged_or_poorly_justified_submission_does_not_write(self):
+        self.client.force_login(self.user)
+        url = reverse("company-correction", args=[self.company.pk])
+        unchanged = self.client.post(url, self.form_data())
+        short_reason = self.client.post(
+            url,
+            self.form_data(legal_name="Outro nome", justification="curta"),
+        )
+
+        self.assertEqual(unchanged.status_code, 200)
+        self.assertContains(unchanged, "Altere ao menos um campo")
+        self.assertEqual(short_reason.status_code, 200)
+        self.assertEqual(CompanyCorrection.objects.count(), 0)
+        self.company.refresh_from_db()
+        self.assertEqual(self.company.legal_name, "Nome obtido na fonte")

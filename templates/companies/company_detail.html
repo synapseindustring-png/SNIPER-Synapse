@@ -7,7 +7,7 @@
 {% for message in messages %}<div class="flash {{ message.tags }}">{{ message }}</div>{% endfor %}
 <div class="page-actions">
   <div><p class="eyebrow">{{ company.cnpj|default:"CNPJ não informado" }}</p><h2 class="page-title">{{ company }}</h2></div>
-  <div class="action-group"><form method="post" action="{% url 'company-crawl-website' company.pk %}">{% csrf_token %}<button class="button secondary" type="submit"{% if pending_crawl_job or not company.website and not company.website_domain %} disabled{% endif %}>{% if pending_crawl_job %}Coleta na fila{% else %}Coletar website{% endif %}</button></form><form method="post" action="{% url 'company-detect-signals' company.pk %}">{% csrf_token %}<button class="button secondary" type="submit"{% if pending_signal_job or not company.recent_source_records %} disabled{% endif %}>{% if pending_signal_job %}Detecção na fila{% else %}Detectar sinais locais{% endif %}</button></form><form method="post" action="{% url 'company-score' company.pk %}">{% csrf_token %}<button class="button" type="submit"{% if pending_score_job %} disabled{% endif %}>{% if pending_score_job %}Cálculo na fila{% else %}Calcular score{% endif %}</button></form><a class="button secondary" href="{% url 'company-list' %}">Voltar à lista</a></div>
+  <div class="action-group">{% if request.user.is_staff %}<a class="button secondary" href="{% url 'company-correction' company.pk %}">Corrigir cadastro</a>{% endif %}<form method="post" action="{% url 'company-crawl-website' company.pk %}">{% csrf_token %}<button class="button secondary" type="submit"{% if pending_crawl_job or not company.website and not company.website_domain %} disabled{% endif %}>{% if pending_crawl_job %}Coleta na fila{% else %}Coletar website{% endif %}</button></form><form method="post" action="{% url 'company-detect-signals' company.pk %}">{% csrf_token %}<button class="button secondary" type="submit"{% if pending_signal_job or not company.recent_source_records %} disabled{% endif %}>{% if pending_signal_job %}Detecção na fila{% else %}Detectar sinais locais{% endif %}</button></form><form method="post" action="{% url 'company-score' company.pk %}">{% csrf_token %}<button class="button" type="submit"{% if pending_score_job %} disabled{% endif %}>{% if pending_score_job %}Cálculo na fila{% else %}Calcular score{% endif %}</button></form><a class="button secondary" href="{% url 'company-list' %}">Voltar à lista</a></div>
 </div>
 
 {% if snapshot %}
@@ -72,6 +72,14 @@
     {% else %}<div class="empty-state small">Nenhum CNAE registrado.</div>{% endif %}
   </article>
 </div>
+
+<article class="panel table-panel">
+  <div class="panel-head"><h2>Correções administrativas</h2><span>Até 100 alterações recentes</span></div>
+  {% if company.recent_corrections %}
+  <table><thead><tr><th>Campo</th><th>Valor anterior</th><th>Novo valor</th><th>Justificativa</th><th>Responsável</th><th>Data</th></tr></thead>
+  <tbody>{% for correction in company.recent_corrections %}<tr><td>{{ correction.field_label }}</td><td>{{ correction.old_value|default_if_none:"—"|default:"—" }}</td><td>{{ correction.new_value|default_if_none:"—"|default:"—" }}</td><td>{{ correction.justification }}</td><td>{{ correction.corrected_by.get_username }}</td><td>{{ correction.created_at|date:"d/m/Y H:i" }}</td></tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty-state small">Nenhuma correção administrativa registrada.</div>{% endif %}
+</article>
 
 <article class="panel table-panel">
   <div class="panel-head"><h2>Proveniência</h2><span>Até 100 coletas recentes</span></div>

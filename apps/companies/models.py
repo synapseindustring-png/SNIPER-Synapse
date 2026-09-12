@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.db import models
 
 
@@ -111,3 +112,45 @@ class CompanyCnae(models.Model):
 
     def __str__(self) -> str:
         return f"{self.code} · {self.company}"
+
+
+class CompanyCorrection(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        related_name="corrections",
+    )
+    field_name = models.CharField(max_length=80)
+    old_value = models.JSONField(null=True, blank=True)
+    new_value = models.JSONField(null=True, blank=True)
+    justification = models.TextField(max_length=500)
+    corrected_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="company_corrections",
+    )
+    source_record = models.OneToOneField(
+        "sources.SourceRecord",
+        on_delete=models.PROTECT,
+        related_name="company_correction",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(
+                fields=("company", "field_name", "created_at"),
+                name="correction_field_idx",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.company} · {self.field_name} · {self.created_at:%Y-%m-%d}"
+
+    @property
+    def field_label(self) -> str:
+        return self.company._meta.get_field(self.field_name).verbose_name.capitalize()

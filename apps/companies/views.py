@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import CharField, DecimalField, Exists, F, OuterRef, Prefetch, Q, Subquery
 from django.db.models.functions import Coalesce
-from django.http import HttpResponseBadRequest, StreamingHttpResponse
+from django.http import Http404, HttpResponseBadRequest, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -17,8 +17,9 @@ from apps.scoring.services import enqueue_company_score
 from apps.signals.services import enqueue_signal_detection
 from apps.sources.models import FieldObservation, SourceRecord
 
-from .forms import CompanyFilterForm
-from .models import Company, CompanyCnae
+from .corrections import CORRECTABLE_FIELDS, correct_company
+from .forms import CompanyCorrectionForm, CompanyFilterForm
+from .models import Company, CompanyCnae, CompanyCorrection
 
 
 def _company_ranking(parameters):
@@ -190,6 +191,13 @@ def company_detail(request, pk):
                 )[:100],
                 to_attr="current_observations",
             ),
+            Prefetch(
+                "corrections",
+                queryset=CompanyCorrection.objects.select_related(
+                    "corrected_by", "source_record"
+                )[:100],
+                to_attr="recent_corrections",
+            ),
         ),
         pk=pk,
     )
@@ -236,6 +244,37 @@ def company_detail(request, pk):
             "website_pages": website_pages,
             "job_postings": job_postings,
         },
+    )
+
+
+@login_required
+def company_correction(request, pk):
+    if not request.user.is_staff:
+        raise Http404
+    company = get_object_or_404(Company, pk=pk, deleted_at__isnull=True)
+    form = CompanyCorrectionForm(request.POST or None, instance=company)
+    if request.method == "POST" and form.is_valid():
+        changes = {
+            field_name: form.cleaned_data[field_name]
+            for field_name in CORRECTABLE_FIELDS
+            if field_name in form.changed_data
+        }
+        company, corrections = correct_company(
+            company=company,
+            changes=changes,
+            justification=form.cleaned_data["justification"],
+            user=request.user,
+        )
+        enqueue_company_score(company)
+        messages.success(
+            request,
+            f"{len(corrections)} campo(s) corrigido(s) com trilha de auditoria.",
+        )
+        return redirect("company-detail", pk=company.pk)
+    return render(
+        request,
+        "companies/company_correction_form.html",
+        {"company": company, "form": form},
     )
 
 

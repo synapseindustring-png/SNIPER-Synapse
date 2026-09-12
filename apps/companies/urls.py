@@ -8,5 +8,6 @@ urlpatterns = [
     path("<uuid:pk>/score/", views.company_score, name="company-score"),
     path("<uuid:pk>/detect-signals/", views.company_detect_signals, name="company-detect-signals"),
     path("<uuid:pk>/crawl-website/", views.company_crawl_website, name="company-crawl-website"),
+    path("<uuid:pk>/correct/", views.company_correction, name="company-correction"),
     path("<uuid:pk>/", views.company_detail, name="company-detail"),
 ]

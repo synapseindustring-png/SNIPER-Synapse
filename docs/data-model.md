@@ -21,6 +21,7 @@ Source 1 ── N SourceRecord N ── 1 Company
                          └── N FieldObservation
 
 Company 1 ── N CompanyCnae
+        1 ── N CompanyCorrection 1 ── 1 SourceRecord
         1 ── N WebsitePage
         1 ── N JobPosting
         1 ── N Signal
@@ -150,6 +151,16 @@ Campos: `id`, `source_id`, `external_id`, `company_id`, `query_run_id`, `source_
 Proveniência por campo: `company_id`, `source_record_id`, `field_name`, `value_json`, `normalized_value`, `confidence`, `observed_at`, `is_current`, `selected_at`.
 
 Uma rotina determinística de precedência escolhe o valor canônico. A escolha não apaga observações anteriores.
+
+### `company_correction`
+
+Evento imutável de correção administrativa por campo: empresa, nome do campo, valor
+anterior, novo valor, justificativa, usuário, registro-fonte manual e data. Somente uma
+lista explícita de campos canônicos pode ser corrigida; o CNPJ permanece fora desse fluxo.
+
+Ao aplicar a correção, a observação selecionada anteriormente é marcada como histórica,
+sem exclusão, e uma nova `FieldObservation` atual aponta para um `SourceRecord` da fonte
+`manual-correction`. A empresa canônica e toda a trilha são atualizadas na mesma transação.
 
 ## Conteúdo enriquecido
 

@@ -48,13 +48,15 @@ operacional persistente do worker permanece como evolução da Fase 7.
 
 ## Fase 2 — consulta e empresa curada
 
-Status: iniciada. Os modelos Company, CompanyCnae, Source, SourceRecord,
+Status: concluída no escopo do MVP. Os modelos Company, CompanyCnae, Source, SourceRecord,
 FieldObservation, DiscoveryQuery, QueryRun, QueryResult e SourceCoverage, suas restrições,
 admin e migrations estão implementados. Fingerprint determinístico e ingestão idempotente
 por CNPJ possuem testes. Formulário, listagem, detalhe, estimativa segura, disparo de prévia
 e tela de execução estão implementados. A listagem paginada de indústrias, seus filtros e o
-detalhe com CNAEs e proveniência também estão disponíveis. Edição e fluxo completo de
-múltiplas partes ainda estão pendentes.
+detalhe com CNAEs e proveniência também estão disponíveis. Correções administrativas são
+restritas a staff, preservam os valores/evidências anteriores e registram antes/depois,
+justificativa, responsável e horário. O fluxo completo de múltiplas partes foi entregue na
+Fase 3.
 
 ### Entregáveis
 
@@ -236,7 +238,8 @@ O admin consegue responder, com evidências:
 3. implementar processamento sequencial das dez partes no modo completo — concluído;
 4. adicionar painel detalhado do manifesto e saúde da fonte — concluído;
 5. adicionar heartbeat persistente e painel operacional do worker — concluído;
-6. permitir correções administrativas preservando a proveniência.
+6. permitir correções administrativas preservando a proveniência — concluído.
+7. concluir o ranking de parceiros e suas evidências de canal/conflito.
 
 ## Dependências candidatas
 

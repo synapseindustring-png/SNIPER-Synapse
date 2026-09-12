@@ -2,6 +2,7 @@ from django import forms
 
 from apps.signals.models import SignalRule
 
+from .corrections import CORRECTABLE_FIELDS
 from .models import Company
 
 
@@ -72,3 +73,30 @@ class CompanyFilterForm(forms.Form):
 
     def clean_state(self):
         return self.cleaned_data["state"].strip().upper()
+
+
+class CompanyCorrectionForm(forms.ModelForm):
+    justification = forms.CharField(
+        label="Justificativa",
+        min_length=10,
+        max_length=500,
+        widget=forms.Textarea(attrs={"rows": 4}),
+        help_text="Explique a origem e o motivo da correção (mínimo de 10 caracteres).",
+    )
+
+    class Meta:
+        model = Company
+        fields = CORRECTABLE_FIELDS
+
+    def clean_state(self):
+        state = self.cleaned_data["state"].strip().upper()
+        if state and len(state) != 2:
+            raise forms.ValidationError("Informe uma UF com duas letras.")
+        return state
+
+    def clean(self):
+        cleaned = super().clean()
+        changed_company_fields = set(self.changed_data).intersection(CORRECTABLE_FIELDS)
+        if not changed_company_fields:
+            raise forms.ValidationError("Altere ao menos um campo do cadastro.")
+        return cleaned
