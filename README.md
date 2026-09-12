@@ -110,6 +110,7 @@ consulta → coleta → normalização → deduplicação → enriquecimento
 - [Fontes e repositórios avaliados](./docs/sources.md)
 - [Prova de processamento seletivo do CNPJ](./docs/cnpj-selective-spike.md)
 - [Deploy e operação](./docs/deployment.md)
+- [Runbook de produção e recuperação](./docs/runbook.md)
 - [Plano de implementação](./docs/implementation-plan.md)
 
 O prompt original permanece em `Prompt — Synapse Sniper MVP.md` como registro de origem. A especificação consolidada incorpora as decisões posteriores e prevalece em caso de ambiguidade.
@@ -145,6 +146,16 @@ Remova temporários CNPJ abandonados por uma interrupção abrupta:
 ```bash
 docker compose run --rm worker python manage.py cleanup_cnpj_temp
 ```
+
+Crie um backup local com checksum e teste a restauração em um banco temporário isolado:
+
+```bash
+./scripts/backup-postgres.sh
+./scripts/restore-check-postgres.sh backups/sniper-<UTC>.dump
+```
+
+Consulte o [runbook de produção](./docs/runbook.md) antes de configurar backups no Coolify
+ou executar uma recuperação real.
 
 Não existem credenciais de Git ou Coolify necessárias para o desenvolvimento local.
 

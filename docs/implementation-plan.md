@@ -243,7 +243,8 @@ O admin consegue responder, com evidências:
 6. permitir correções administrativas preservando a proveniência — concluído.
 7. concluir o ranking de parceiros e suas evidências de canal/conflito — concluído.
 8. implementar gestão visual versionada das regras de scoring — concluído.
-9. consolidar o runbook de produção, backup e restauração testada.
+9. consolidar o runbook de produção, backup e restauração testada — concluído localmente;
+   agendamento e armazenamento externo dependem da infraestrutura de produção.
 
 ## Dependências candidatas
 

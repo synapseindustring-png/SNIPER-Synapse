@@ -120,13 +120,15 @@ Migrations destrutivas ou longas seguirão expansão/contração. Nunca depender
 
 ## Backup e recuperação
 
-- backup diário do PostgreSQL;
-- retenção definida no Coolify/armazenamento;
-- teste de restauração periódico;
+- backup diário do PostgreSQL em armazenamento externo criptografado;
+- retenção definida no Coolify/armazenamento e monitorada;
+- teste de restauração mensal e após mudanças relevantes;
 - exportar também versão das regras e configurações;
 - não depender dos payloads temporários para reconstruir Explain Score já publicado.
 
-Antes do primeiro uso real, executar restauração em ambiente isolado e documentar RPO/RTO aceitos.
+Antes do primeiro uso real, executar restauração em ambiente isolado e aprovar RPO/RTO. O
+procedimento, scripts locais verificáveis e resposta a incidentes estão no
+[runbook de produção](./runbook.md).
 
 ## Segurança
 
